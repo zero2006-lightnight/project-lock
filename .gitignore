@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Environment files
+.env
+.env.local
+.env.*
+!.env.example
+
+# API keys and credentials
+*.pem
+*.key
+service-account*.json
+
+# Build output
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Local QA artifacts
+scripts/.chrome-profile/
+scripts/.shots/
+scripts/.chrome-*/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local development state
+.idea/
+data/*.db*

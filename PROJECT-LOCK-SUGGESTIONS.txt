@@ -1,0 +1,723 @@
+=====================================================================
+ PROJECT-LOCK — MASTER IMPROVEMENT BACKLOG
+ (PROJECT-LOCK-SUGGESTIONS.txt)
+=====================================================================
+ This file is the single source of truth for improvements.
+ Statuses: PENDING | PARTIALLY COMPLETED | COMPLETED |
+           IMPLEMENTED — IMPROVEMENT AVAILABLE | OBSOLETE
+ Rules: never delete an entry; mark obsolete with a reason.
+ Last full audit: 2026-09-06 (verified against source, not memory).
+=====================================================================
+
+SUGGESTION ID: PL-001
+TITLE: Fix Secure-cookie rejection on plain-HTTP LAN hosts (onboarding bounce-to-login)
+CATEGORY: Bug / Security
+PRIORITY: P1 — Critical
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: src/lib/auth/session.ts sets the session
+  cookie `Secure` only when the request is actually HTTPS (derived from
+  x-forwarded-proto, not NODE_ENV).
+PROBLEM: In production builds the session cookie was always `Secure`.
+  Browsers silently reject Secure cookies over plain HTTP on
+  non-localhost hosts (e.g. http://192.168.56.1:3000). Signup worked but
+  the cookie was dropped, so "Generate my plan" hit the server with no
+  session and bounced the student to /login. Only LAN-IP access was
+  affected; localhost was exempt, which is why dev testing passed.
+PROPOSED IMPROVEMENT: Derive the cookie Secure flag from the real
+  request protocol.
+EXPECTED BENEFIT: Onboarding completes on LAN-IP HTTP deployments.
+DEPENDENCIES: none
+RISK: Low — Secure is still set on HTTPS; proxy deployments must send
+  x-forwarded-proto (documented in README troubleshooting).
+SCOPE: src/lib/auth/session.ts
+VERIFICATION METHOD: Cookie-level CDP browser trace + full signup →
+  onboarding → dashboard E2E on http://192.168.56.1:3000.
+UPGRADE OPPORTUNITY: none needed
+IMPLEMENTATION NOTES: Found via browser cookie trace (0 cookies stored
+  after signup pre-fix; sp_session secure=false post-fix).
+---------------------
+
+SUGGESTION ID: PL-002
+TITLE: Fix "Invalid time value" crash on dashboard/Today for brand-new accounts
+CATEGORY: Bug / Reliability
+PRIORITY: P1 — Critical
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: Dashboard renders relativeDay only when
+  data.today exists; Today page falls back to todayISO() when no plan
+  day exists.
+PROBLEM: A fresh account with subjects but no topics produces zero plan
+  blocks → data.today is null → relativeDay("") threw RangeError and the
+  dashboard showed the default Next.js error page right after onboarding.
+PROPOSED IMPROVEMENT: Guard the two unguarded date renders.
+EXPECTED BENEFIT: First dashboard visit works for every new account.
+DEPENDENCIES: none
+RISK: none
+SCOPE: src/app/app/page.tsx, src/app/app/today/page.tsx
+VERIFICATION METHOD: Browser E2E signup → onboarding → dashboard on the
+  LAN host; zero server errors in the production log.
+UPGRADE OPPORTUNITY: Add a root error boundary (see PL-006) so any
+  future crash degrades gracefully.
+IMPLEMENTATION NOTES: Discovered by the post-fix E2E run for PL-001 —
+  the cookie fix exposed this second, independent crash.
+---------------------
+
+SUGGESTION ID: PL-003
+TITLE: Onboarding wizard: never silently disable Continue
+CATEGORY: UX
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: Continue always responds; incomplete steps
+  show an explicit yellow hint naming exactly what to fill; first input
+  auto-focuses per step.
+PROBLEM: Continue was disabled until a subject name was typed. Users who
+  pressed it on an empty step saw nothing happen and concluded the app
+  was stuck.
+PROPOSED IMPROVEMENT: Replace silent disable with explicit guidance.
+EXPECTED BENEFIT: No dead-end feeling during the first-run experience.
+DEPENDENCIES: none
+RISK: none
+SCOPE: src/components/app/onboarding-wizard.tsx
+VERIFICATION METHOD: Headless-browser walkthrough of all steps, hints
+  firing on empty steps.
+UPGRADE OPPORTUNITY: none needed
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-004
+TITLE: Google OAuth sign-in (Google Cloud Console)
+CATEGORY: Feature / Auth
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: GET /auth/google (state-cookie CSRF guard,
+  protocol-aware Secure flag) → GET /auth/google/callback (code
+  exchange, verified-email profile, upsert-by-email, session) + button
+  on login/signup when configured + friendly error banners.
+PROBLEM: No OAuth; email/password only.
+PROPOSED IMPROVEMENT: Full Google OAuth flow using raw fetch (no new
+  dependency), env-driven configuration.
+EXPECTED BENEFIT: One-click sign-in; OAuth-ready architecture as spec'd.
+DEPENDENCIES: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env;
+  redirect URI http://localhost:3000/auth/google/callback registered.
+RISK: Low. Note: Google only accepts registered redirect URIs — LAN-IP
+  users must use localhost unless the LAN origin is registered too.
+SCOPE: src/app/auth/google/*, src/lib/auth/google.ts, auth form.
+VERIFICATION METHOD: Live-tested: consent redirect 307 correct, real
+  Google consent page rendered (HTTP 200), failure paths redirect with
+  friendly banners, button renders when configured. Full end-to-end
+  account creation NOT VERIFIED (requires interactive human consent in
+  a real browser session).
+UPGRADE OPPORTUNITY: GitHub provider via the same seam (PENDING →
+  tracked as PL-017).
+IMPLEMENTATION NOTES: Reuses createSession; passwordHash stays null for
+  OAuth-only accounts.
+---------------------
+
+SUGGESTION ID: PL-005
+TITLE: Wire a real AI provider and E2E-test tutor/quiz/flashcards
+CATEGORY: Feature / AI
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: .env points at Groq's OpenAI-compatible
+  endpoint (qwen model); chat intents route through the LLM when a key
+  exists; outputs Zod-validated; deterministic engine answers everything
+  when no key is set.
+PROBLEM: AI layer was provider-ready but never exercised against a real
+  model end to end.
+PROPOSED IMPROVEMENT: Wire key + browser E2E of the three LLM intents.
+EXPECTED BENEFIT: Real tutoring works; two real bugs found and fixed
+  (missing-reply validation crash; stuck thinking state on provider
+  error).
+DEPENDENCIES: AI_API_KEY etc. in .env (free tier has rate limits).
+RISK: Low — provider swap is .env-only by design.
+SCOPE: .env, src/lib/ai/router.ts, src/lib/actions/chat.ts,
+  scripts/ai-qa.mjs.
+VERIFICATION METHOD: Browser E2E (scripts/ai-qa.mjs): tutor 1329-char
+  structured reply, quiz 3 questions, 5 contextual flashcards, Settings
+  shows provider active, zero console errors.
+UPGRADE OPPORTUNITY: Streaming responses (PL-008).
+IMPLEMENTATION NOTES: OpenAI key had no credits → switched to Groq per
+  user decision.
+---------------------
+
+SUGGESTION ID: PL-006
+TITLE: Root error boundary + not-found page
+CATEGORY: Reliability / UX
+PRIORITY: P1 — Critical (small effort, high value)
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED — no src/app/error.tsx,
+  global-error.tsx or not-found.tsx exists (verified).
+PROBLEM: Any server component crash (e.g. the PL-002 class of bug)
+  renders Next.js's default error screen: off-brand, user-hostile, and
+  it hides the app shell/navigation.
+PROPOSED IMPROVEMENT: Add branded error.tsx (with reset), a root
+  not-found.tsx, and a minimal global-error.tsx.
+EXPECTED BENEFIT: Graceful, on-brand degradation; one-click recovery.
+DEPENDENCIES: none
+RISK: Minimal — additive leaf files.
+SCOPE: src/app/error.tsx, src/app/not-found.tsx,
+  src/app/global-error.tsx.
+VERIFICATION METHOD: Build + smoke 14/14 + render check of the error
+  page markup.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: Implemented 2026-09-06: branded error.tsx (Try
+  again + dashboard link, shows digest), not-found.tsx (dashboard/home
+  links), minimal global-error.tsx (own <html>/<body>, inline styles —
+  global CSS is unavailable there by definition). Changelog entry #8.
+---------------------
+
+SUGGESTION ID: PL-007
+TITLE: Per-user rate limiting + prompt-injection hardening on the AI chat endpoint
+CATEGORY: Security
+PRIORITY: P1 — Critical
+CURRENT STATUS: COMPLETED
+CURRENT IMPLEMENTATION STATE: sendChatMessageAction enforces
+  20 messages / 5 min per user (in-memory sliding-window limiter,
+  src/lib/security/rate-limit.ts — rejected hits consume no budget so
+  blocks never self-extend). User text is control-char-stripped and
+  identical-line-collapsed (src/lib/security/guard.ts), delimiter-wrapped
+  <<<USER_MESSAGE>>>…<<<END_USER_MESSAGE>>>, and the system prompt carries
+  an untrusted-input directive. Unit-tested in tests/security.test.ts
+  (31 tests project-wide).
+PROBLEM: Two exposures on the one endpoint that spends money and talks
+  to a model: (1) no per-user rate limit, (2) prompt-injection surface —
+  a crafted message could try to override Pilot's instructions. Blast
+  radius is bounded by design (LLM has no tool/DB-write access; outputs
+  Zod-validated), but both gaps should still be closed.
+PROPOSED IMPROVEMENT: Sliding-window per-user limiter at the action
+  boundary + defense-in-depth input hygiene (strip control tokens,
+  wrap user text in delimiters, add an untrusted-input directive to the
+  system prompt). No heuristic message refusal — false positives would
+  harm UX more than the risk they mitigate.
+EXPECTED BENEFIT: Bounded per-user cost; neutralized instruction-
+  override attempts; clear feedback when throttled.
+DEPENDENCIES: none (in-memory limiter by design for the single-instance
+  SQLite deployment; a shared store becomes relevant with multi-instance
+  Postgres — see PL-009).
+RISK: Low.
+SCOPE: new src/lib/security/*, src/lib/actions/chat.ts,
+  src/lib/ai/router.ts, tests.
+VERIFICATION METHOD: Unit tests for limiter windows/limits and guard
+  behavior; chat E2E regression (scripts/ai-qa.mjs) still green; full
+  gates (tsc, vitest, build, smoke).
+UPGRADE OPPORTUNITY: Reuse the same limiter on auth endpoints (split
+  into PL-013 to keep changes isolated).
+IMPLEMENTATION NOTES: Implemented 2026-09-06. Unit tests caught two
+  real bugs in the first draft BEFORE any deployment: (a) blocked hits
+  were recorded, extending blocks forever; (b) spam collapse kept 2 of
+  3 identical lines. Both fixed and re-tested. LLM chat E2E regression
+  (scripts/ai-qa.mjs, DB ground-truth) green through the secured path.
+  Changelog entry #9.
+---------------------
+
+SUGGESTION ID: PL-008
+TITLE: Stream AI chat responses token-by-token
+CATEGORY: UX / AI
+PRIORITY: P3 — Medium
+CURRENT STATUS: COMPLETED (2026-09-06)
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED — chat returns one
+  complete reply per server action (verified: no streaming route exists).
+PROBLEM: Tutor replies (500–1300 chars) appear all at once after several
+  seconds; modern AI chat UX streams progressively.
+PROPOSED IMPROVEMENT: Route-handler SSE/WebSocket stream for LLM intents
+  while keeping the server-action path for deterministic intents, or
+  stream via ReadableStream in a /api/chat route. Requires moving auth
+  cookie reading into the route (straightforward).
+EXPECTED BENEFIT: Perceived latency drops dramatically for tutor/quiz/
+  flashcard replies.
+DEPENDENCIES: Provider must support streaming (OpenAI-compatible SSE —
+  Groq does). Deterministic intents stay instant (no change).
+RISK: Medium — touches the chat transport; must preserve persistence
+  and error handling. Keep the existing action as fallback.
+SCOPE: new src/app/api/chat/route.ts + chat-view adjustments.
+VERIFICATION METHOD: Browser E2E asserting progressive text growth.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: Completed. Transport: POST /api/chat (SSE).
+  Shared prompt builder (llmChatParams) keeps JSON path and stream path
+  wording-identical, with a mode switch (json/text). Provider gained an
+  optional stream() with onDelta callback (OpenAI-compatible SSE; Groq
+  verified live). Client reads the stream and renders incrementally;
+  "done" is authoritative (carries validated + persisted meta). Safety
+  chain preserved: auth -> rate limit -> sanitize -> validated persist,
+  and stream failure degrades to the deterministic fallback so the
+  conversation never dies. Verified live: 349 delta frames, first token
+  7ms; full gate suite green; smoke 14/14.
+---------------------
+
+SUGGESTION ID: PL-009
+TITLE: PostgreSQL migration (real driver + Drizzle pg migrations)
+CATEGORY: Architecture / Scalability
+PRIORITY: P2 — High
+CURRENT STATUS: PENDING — BLOCKED on external input
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED — data layer is SQLite
+  (better-sqlite3, synchronous Drizzle API). Migration requires
+  converting every query site to the async postgres driver API.
+PROBLEM: SQLite file DB caps concurrent writes and multi-instance
+  deployment.
+PROPOSED IMPROVEMENT: Swap drizzle.config + client to `postgres`
+  driver, regenerate migrations, reseed, re-run all QA against live
+  Postgres.
+EXPECTED BENEFIT: Production-grade concurrency; deployment flexibility.
+DEPENDENCIES: REQUIRES a live Postgres connection string from the user
+  (no local Postgres/Docker on this machine — verified).
+RISK: Medium-high — touches every data-access call site; do as its own
+  dedicated session with the full gate suite.
+SCOPE: drizzle.config.ts, src/lib/db/*, all query sites, migrations.
+VERIFICATION METHOD: Full gates + smoke + browser QA against Postgres.
+UPGRADE OPPORTUNITY: Unblocks multi-instance rate limiting (PL-007
+  note) and real deployment.
+IMPLEMENTATION NOTES: User agreed to paste a connection string; not yet
+  provided.
+---------------------
+
+SUGGESTION ID: PL-010
+TITLE: CI pipeline (GitHub Actions): typecheck + tests + build + smoke on every push
+CATEGORY: DevOps / Quality
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED (2026-09-06, loop iteration 4) — project
+  pushed to github.com/ReddyKrishna-web/project-lock, run #34029152014
+  GREEN (all steps success) on commit 163b785.
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED — no .github directory
+  (verified). All gates run manually.
+PROBLEM: Verification currently depends on discipline; regressions can
+  land silently.
+PROPOSED IMPROVEMENT: Workflow running tsc, vitest, build, and the
+  smoke script on push/PR.
+EXPECTED BENEFIT: Every change is machine-verified; protects the
+  workflow the master prompt demands.
+DEPENDENCIES: Repo must be pushed to GitHub. NOTE: the project currently
+  sits UNTRACKED inside a home-directory git repo (C:/Users/aKris →
+  Krishna.git); CI only runs once the project is its own repo on GitHub.
+RISK: Low.
+SCOPE: .github/workflows/ci.yml (+ smoke script headless-chrome deps).
+VERIFICATION METHOD: Green run on next push.
+UPGRADE OPPORTUNITY: — (lint gate included from day one; PL-011 cleared
+  the errors before this shipped). IMPLEMENTATION NOTES: .github/workflows/ci.yml
+  runs lint → typecheck → tests → build → smoke on Node 24, ubuntu-latest,
+  with npm cache and concurrency cancellation. Locally validated: YAML
+  parses, `npm ci --dry-run` passes (required pinning all deps to exact
+  locked versions — `lucide-react: "^0.5"` etc. were unsatisfiable), full
+  gate suite green. A live runner run remains NOT VERIFIED until push.
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-011
+TITLE: ESLint debt: 20 errors, 39 warnings
+CATEGORY: Maintainability
+PRIORITY: P3 — Medium
+CURRENT STATUS: COMPLETED (2026-09-06, loop iteration 3)
+CURRENT IMPLEMENTATION STATE: IMPLEMENTED — `npm run lint` exits with
+  0 errors, 0 warnings. Root-cause fixes only, no rule suppressions.
+PROBLEM: Lint errors mask real issues and block using lint as a CI gate.
+PROPOSED IMPROVEMENT: Fix the errors (unused imports, hook-dep and
+  similar classes), evaluate warnings, then add lint to CI.
+EXPECTED BENEFIT: Restores lint as a trustworthy gate.
+DEPENDENCIES: none; best done before/with PL-010.
+RISK: Low, but touches many files — mechanical, one error class at a
+  time.
+SCOPE: src/**, eslint config untouched unless a rule is genuinely wrong.
+VERIFICATION METHOD: npm run lint exits 0; tsc/vitest/build/smoke green.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-012
+TITLE: SESSION_SECRET env var is dead configuration
+CATEGORY: Maintainability / Config hygiene
+PRIORITY: P4 — Low
+CURRENT STATUS: COMPLETED (2026-09-06)
+CURRENT IMPLEMENTATION STATE: SESSION_SECRET appears in .env and
+  .env.example but is referenced nowhere in src (verified by grep).
+PROBLEM: Dead env vars mislead operators into thinking rotation matters
+  here; sessions actually use 32-byte random DB-backed tokens.
+PROPOSED IMPROVEMENT: Either remove it from env files or genuinely use
+  it (e.g. as pepper for token hashing). Removal is the honest minimal
+  change; usage is optional.
+EXPECTED BENEFIT: Configuration tells the truth.
+DEPENDENCIES: none
+RISK: Minimal. Note: removing it invalidates nothing (it was never
+  read).
+IMPLEMENTATION NOTES: Completed via removal (the honest minimal
+  change). Verified across .env, .env.example, README.md, and
+  Process&Architectute.txt; zero references remain in tracked files.
+  Sessions remain DB-backed 32-byte random tokens (unchanged); a hash
+  pepper was deliberately NOT added — tokens are unguessable, so a
+  pepper would be security theater. Full gate suite green after the
+  change.
+SCOPE: .env.example, README env table.
+VERIFICATION METHOD: grep clean; gates green.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-013
+TITLE: Rate limiting on auth endpoints (login/signup brute-force defense)
+CATEGORY: Security
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED (2026-09-06, loop iteration 2)
+CURRENT IMPLEMENTATION STATE: IMPLEMENTED — loginAction/signupAction
+  guard via authRateLimit(); Google OAuth callback limited at 10/15min
+  per IP with a fail-closed redirect + google_rate banner on /login.
+PROBLEM: loginAction/signupAction accept unlimited attempts; scrypt
+  hashing makes online guessing slow but not free; OAuth callback token
+  exchange is also unbounded.
+PROPOSED IMPROVEMENT: Apply the existing limiter keyed by IP
+  (x-forwarded-for) + email on login, IP on signup/callback.
+EXPECTED BENEFIT: Online brute force becomes impractical; no new
+  architecture (reuses PL-007 component).
+DEPENDENCIES: PL-007 (completed).
+RISK: Low — choose generous limits (e.g. 10 login attempts / 15 min per
+  IP+email) to avoid locking out shared NATs (important: user accesses
+  via LAN IP).
+SCOPE: src/lib/auth/actions.ts, src/app/auth/google/callback/route.ts,
+  tests.
+VERIFICATION METHOD: Unit tests + manual throttle check.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: Deliberately split from PL-007 so each security
+  change lands and verifies separately. VERIFIED LIVE: 5 wrong-password
+  attempts pass through, 6th blocked with honest retry window, different
+  email on same IP unaffected (NAT-safe keying proven). New helper
+  src/lib/security/request-key.ts (clientIpFromHeaders, retryMinutes);
+  6 new unit tests (37 total). Live test initially appeared to fail —
+  root cause was the test harness submitting while the button was
+  disabled (submissions silently dropped); app logic was correct.
+---------------------
+
+SUGGESTION ID: PL-014
+TITLE: Notification delivery (push/email) beyond preference storage
+CATEGORY: Feature
+PRIORITY: P3 — Medium
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: PARTIALLY IMPLEMENTED at product level —
+  notification rows are created and preferences are configurable in
+  Settings, but nothing is delivered outside the app (no email/push
+  transport; verified).
+PROBLEM: Users must open the app to learn a deadline is near.
+PROPOSED IMPROVEMENT: Pick ONE channel (web push or email digest) and
+  wire it behind the existing preference flags; needs a provider
+  decision (use Gravity Index search at implementation time).
+EXPECTED BENEFIT: Deadlines/exams actually reach the student.
+DEPENDENCIES: Provider account (email/push); user consent for signup.
+RISK: Medium — external dependency, credentials.
+SCOPE: new src/lib/services/notify.ts + provider + settings wiring.
+VERIFICATION METHOD: End-to-end delivery to a real inbox/device.
+UPGRADE OPPORTUNITY: Daily-plan digest email.
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-015
+TITLE: PDF syllabus import (extraction + AI parsing)
+CATEGORY: Feature
+PRIORITY: P3 — Medium
+CURRENT STATUS: COMPLETED (2026-09-06)
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED (manual entry + demo data
+  only). Onboarding copy already promises future support.
+PROBLEM: Typing a full syllabus is the single biggest onboarding cost.
+PROPOSED IMPROVEMENT: Upload PDF → text extraction → LLM structuring
+  into subjects/units/topics (Zod-validated) → preview → confirm.
+EXPECTED BENEFIT: Onboarding minutes → seconds; directly attacks the
+  product's core promise.
+DEPENDENCIES: PDF parsing library choice; LLM key (present).
+RISK: Medium — parsing quality varies; preview/confirm flow contains it.
+SCOPE: new upload route + parsing service + wizard/syllabus integration.
+VERIFICATION METHOD: E2E with 2–3 real university syllabus PDFs.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: Completed. New services/syllabus-parse.ts
+  (LLM structuring via askForJson + Zod with clamping/truncating
+  validation, deterministic regex heuristic fallback); new
+  actions/import.ts (parse → single-use preview token → commit,
+  ownership re-checked at commit); new syllabus-import.tsx dialog on
+  the syllabus page with fully editable preview. BONUS BUG FIX: the
+  E2E exposed that extract.ts targeted a pdf-parse shape that does
+  not match installed v2.4.5 (PDFParse class) — PDF text extraction
+  was broken; fixed to support both v2 class API and legacy function.
+  Verified with a hand-built real PDF: extraction 539 chars, AI parse
+  → 4 units / 12 topics, subject renamed from filename; 43/43 tests
+  (6 new); full gate suite green.
+---------------------
+
+SUGGESTION ID: PL-016
+TITLE: Calendar DnD maturity: time-of-day drops, touch & keyboard dragging
+CATEGORY: UX / Accessibility
+PRIORITY: P3 — Medium
+CURRENT STATUS: PARTIALLY COMPLETED (base feature done; accessibility
+  drag missing)
+CURRENT IMPLEMENTATION STATE: Day-level HTML5 drag-and-drop exists in
+  week+month views with capacity/past/topic-dedup rules (verified).
+  Time-of-day placement, touch drag, and keyboard drag are NOT
+  implemented.
+PROBLEM: Mouse-only DnD excludes touch and keyboard users; blocks always
+  land at their original time.
+PROPOSED IMPROVEMENT: Phase 1: keyboard-accessible "Move to…" menu on
+  every block (accessible without drag at all). Phase 2: pointer-events
+  touch drag. Phase 3: time-slot drops.
+EXPECTED BENEFIT: Accessibility + mobile usability for rescheduling.
+DEPENDENCIES: none
+RISK: Low phase 1; medium phases 2–3.
+SCOPE: src/components/app/calendar-view.tsx, plan-item-row.tsx.
+VERIFICATION METHOD: Keyboard-only walkthrough; mobile emulation E2E.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-017
+TITLE: GitHub OAuth provider via the existing auth seam
+CATEGORY: Feature / Auth
+PRIORITY: P4 — Low
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED; Google OAuth (PL-004)
+  established the reusable pattern (start route, callback, state cookie,
+  upsert-by-email).
+PROBLEM: Only one OAuth provider.
+PROPOSED IMPROVEMENT: Clone the seam for GitHub (note: GitHub OAuth has
+  no OIDC userinfo; use /user + /user/emails APIs).
+EXPECTED BENEFIT: Coverage for students whose school email is
+  GitHub-first.
+DEPENDENCIES: GitHub OAuth app credentials from user.
+RISK: Low.
+SCOPE: src/app/auth/github/*, auth form buttons.
+VERIFICATION METHOD: Live callback test with real credentials.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-018
+TITLE: Containerized deployment recipe (Dockerfile + compose)
+CATEGORY: DevOps
+PRIORITY: P3 — Medium
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED (no Dockerfile/compose —
+  verified). Runbook is README-only.
+PROBLEM: Deployment is manual; SQLite volume + env wiring live in the
+  operator's head.
+PROPOSED IMPROVEMENT: Multi-stage Dockerfile (standalone Next output) +
+  compose with a named volume for data/ + env template. Prefer doing
+  this AFTER PL-009 (Postgres) to avoid documenting a layout that then
+  changes.
+EXPECTED BENEFIT: Repeatable one-command deploys.
+DEPENDENCIES: ideally PL-009 first; Docker unavailable on this machine
+  — image build can be smoke-tested but runtime NOT VERIFIED locally.
+RISK: Low.
+SCOPE: Dockerfile, docker-compose.yml, next.config standalone flag,
+  README.
+VERIFICATION METHOD: docker build + run + smoke against container
+  (or explicitly NOT VERIFIED if no Docker host).
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-019
+TITLE: Password reset (email-less reset token flow)
+CATEGORY: Auth / UX
+PRIORITY: P3 — Medium
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: NOT IMPLEMENTED — no reset route or
+  action exists (verified). A forgotten password permanently locks the
+  account out.
+PROBLEM: No recovery path for password accounts.
+PROPOSED IMPROVEMENT: Depends on having a channel: with email (PL-014)
+  do emailed tokens; without email, an admin/operator CLI reset script
+  (seed-demo.ts pattern) is the honest minimal fix for a self-hosted
+  single-instance app.
+EXPECTED BENEFIT: No permanently locked accounts.
+DEPENDENCIES: PL-014 for the email variant.
+RISK: Low for the CLI variant.
+SCOPE: new script + README, or full route flow if email exists.
+VERIFICATION METHOD: Reset a real account end to end.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-020
+TITLE: Spaced-repetition scheduling for flashcards
+CATEGORY: Feature / Learning science
+PRIORITY: P5 — Experimental
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: Flashcards exist with Easy/Good/Hard
+  grading and the schema is SR-ready, but intervals are not scheduled
+  into the plan.
+PROBLEM: Graded cards don't influence future review timing.
+PROPOSED IMPROVEMENT: SM-2-lite intervals feeding topic freshness and a
+  "review" plan kind.
+EXPECTED BENEFIT: Real retention loop; differentiator.
+DEPENDENCIES: stable planner behavior; do after core hardening items.
+RISK: Medium — touches planning engine; needs its own tests.
+SCOPE: engine + flashcard service + plan integration.
+VERIFICATION METHOD: Unit tests for interval math + planner integration.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-021
+TITLE: Chat history pagination / conversation growth control
+CATEGORY: Performance
+PRIORITY: P4 — Low
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: The active conversation grows unbounded;
+  the chat view renders full history.
+PROBLEM: Months of use → slow chat page and heavy context.
+PROPOSED IMPROVEMENT: Cap loaded messages (e.g. last 50) with
+  "load older" control; cap LLM context to last N turns (already
+  snapshot-based, so cheap).
+EXPECTED BENEFIT: Constant chat performance over time.
+DEPENDENCIES: none
+RISK: Low.
+SCOPE: src/lib/services/chat.ts, chat-view.
+VERIFICATION METHOD: Seed 500 messages; assert render cost bounded.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+SUGGESTION ID: PL-022
+TITLE: Landing page demo-video / interactive tour
+CATEGORY: UX / Marketing
+PRIORITY: P4 — Low
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: Landing page is static sections (hero,
+  features, testimonials, FAQ).
+PROBLEM: New users must trust text; the product's strongest asset is the
+  living dashboard.
+PROPOSED IMPROVEMENT: Embed an auto-playing muted screen-capture tour of
+  the real app (or an interactive mock) in the hero.
+EXPECTED BENEFIT: Faster comprehension inside the 30-second bar the
+  product spec demands.
+DEPENDENCIES: recording assets.
+RISK: none
+SCOPE: landing page hero only.
+VERIFICATION METHOD: Visual check light/dark.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+---------------------
+
+BACKLOG SUMMARY (2026-09-08 — Study Intelligence Upgrade; PL-026 completed)
+  COMPLETED:                PL-001, PL-002, PL-003, PL-004, PL-005,
+                            PL-006, PL-007, PL-008, PL-010, PL-011,
+                            PL-012, PL-013, PL-015, PL-023, PL-025, PL-026
+  PENDING:                  PL-009 (blocked: needs connection string),
+                            PL-014, PL-016 … PL-022, PL-024
+  NEXT UP (per priority):   PL-016 (P3, calendar DnD maturity) →
+                            PL-018 (P3) → PL-019 (P3)
+  BLOCKED / EXTERNAL INPUT: PL-009 (Postgres URL), PL-014 (channel +
+                            provider account), PL-017 (GitHub app)
+=====================================================================
+
+---------------------
+SUGGESTION ID: PL-023
+TITLE: Semantic (embedding-based) search over uploaded study materials
+CATEGORY: AI / Data
+PRIORITY: P3 — Medium
+CURRENT STATUS: COMPLETED (2026-09-07, via the Tuning feature)
+CURRENT IMPLEMENTATION STATE: IMPLEMENTED — Tuning knowledge bases chunk
+  PDFs at processing time, embed with provider embeddings when reachable
+  (else a deterministic on-device index, source stored per KB), and rank
+  by cosine similarity scoped to user + subject. Syllabus-materials
+  recency excerpts in chat remain as they were.
+PROBLEM: With many uploads, the model may not see the excerpt that
+  actually answers the question.
+PROPOSED IMPROVEMENT: Embed material chunks at upload time and rank by
+  cosine similarity to the user message before building context.
+EXPECTED BENEFIT: Grounded answers stay accurate as the library grows.
+DEPENDENCIES: An embeddings endpoint on the chosen provider.
+RISK: Low — additive; recency-based selection remains the fallback.
+SCOPE: extraction service + chat context builder.
+VERIFICATION METHOD: Ask a question answerable only from an older
+  upload; assert the correct excerpt is selected.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: Completed as src/lib/tuning/* (embed/chunk/jobs/
+  patterns/query/retrieve/state) + /app/tuning. Provider embeddings are
+  best-effort with an on-device fallback instead of a hard dependency;
+  per-KB source is never mixed. E2E-verified with a hand-built PDF
+  (retrieval, isolation, flowchart spec). Changelog ENTRY #18.
+---------------------
+SUGGESTION ID: PL-024
+TITLE: OCR for image uploads (photo-of-textbook path)
+CATEGORY: AI / UX
+PRIORITY: P4 — Low
+CURRENT STATUS: PENDING
+CURRENT IMPLEMENTATION STATE: Image uploads are stored and previewable
+  but contribute no text to Pilot's context (honestly documented in
+  the extraction service).
+PROBLEM: A photo of a textbook page produces no grounded material.
+PROPOSED IMPROVEMENT: Route images through an OCR step (provider vision
+  endpoint or tesseract.js) during extraction.
+EXPECTED BENEFIT: The photo-of-notes workflow becomes genuinely useful.
+DEPENDENCIES: OCR capability choice; storage of extracted text.
+RISK: Medium — accuracy varies; needs a manual-review affordance.
+SCOPE: src/lib/services/extract.ts + upload action.
+VERIFICATION METHOD: Upload a legible photo; assert extracted text
+  appears in the materials list.
+UPGRADE OPPORTUNITY: —
+IMPLEMENTATION NOTES: —
+=====================================================================
+SUGGESTION ID: PL-025
+TITLE: Tuning Intelligence Engine (human-like personalized AI decision architecture)
+CATEGORY: AI / Personalization
+PRIORITY: P2 — High
+CURRENT STATUS: COMPLETED (2026-09-08)
+CURRENT IMPLEMENTATION STATE: IMPLEMENTED — src/lib/tuning/intelligence/
+  (types, subject-detection, classify, intent, strategy,
+  visual-decision, subject-map, profile, context-builder, validator,
+  pipeline) wired into askTuningAction; signalsJson on tuningPrefs
+  (migration 0006); learned-preference display + reset in Tuning
+  dashboard; 23 new tests in tests/tuning-intelligence.test.ts.
+PROBLEM: Tuning answered retrieve-then-generate: no subject priority,
+  single-label classification, no intent analysis, no strategy choice,
+  visuals by keyword only, personalization always-on, no uncertainty
+  discipline, no preference learning.
+PROPOSED IMPROVEMENT: Three-layer decision architecture — understand
+  first, retrieve second, personalize third, choose strategy fourth,
+  generate last — per the Tuning Intelligence Engine brief (§1–§23).
+EXPECTED BENEFIT: Answers grounded in the right subject, shaped by
+  real intent, visualized only when useful, personalized only when
+  relevant, honest when thin, improving gradually with user control.
+DEPENDENCIES: PL-023 (completed — RAG foundation reused, not duplicated).
+RISK: Low — additive modules; deterministic composer + retrieval
+  paths unchanged; LLM prompt strictly richer (budgeted context +
+  strategy instruction).
+SCOPE: src/lib/tuning/intelligence/* (new), src/lib/actions/tuning.ts,
+  src/lib/tuning/state.ts, tuning-dashboard.tsx, tuningPrefs column,
+  tests/tuning-intelligence.test.ts.
+VERIFICATION METHOD: 94/94 vitest (23 new, one per §23 criterion);
+  tsc clean; lint 0 errors; build OK; smoke 16/16 incl. /app/tuning.
+UPGRADE OPPORTUNITY: Conversation-aware subject resolution (panel is
+  stateless today — recentQueries plumbed but empty); dedicated worker
+  with PL-009.
+IMPLEMENTATION NOTES: Also fixed as drive-bys: eslint ignore
+  generalized to scripts/.chrome-*/** (new QA profiles re-broke lint
+  with 189 third-party errors, same class as PL-011) and an unused
+  catch binding in assess/summary.ts. Remaining 3 lint warnings are
+  in untracked scratch QA scripts only.
+=====================================================================
+SUGGESTION ID: PL-026
+TITLE: Study Intelligence Upgrade - syllabus/general quiz, AI flashcards, AI mind maps
+CATEGORY: Feature / AI Learning System
+PRIORITY: P2 - High
+CURRENT STATUS: COMPLETED (2026-09-08)
+CURRENT IMPLEMENTATION STATE: IMPLEMENTED - src/lib/study/ (sources,
+  difficulty, scheduling) + src/lib/assess/{quiz,flashcards,mindmaps}
+  generation + src/lib/actions/study.ts + QuizRunner source toggle +
+  /app/flashcards + /app/mindmaps + nav entries + tests/study.test.ts.
+PROBLEM: Quiz demanded pasted material even when the syllabus already
+  held the content; no general quiz; flashcards table existed with no
+  UI; no mind maps; difficulty was stored but barely shaped questions.
+PROPOSED IMPROVEMENT: Unified study intelligence per the brief -
+  shared syllabus retrieval, Syllabus/General sources, real difficulty
+  contracts, teacher-style flashcards with self-assessment, structured
+  SVG mind maps, personalization signals. No new tables.
+EXPECTED BENEFIT: One learning flow (Syllabus -> Pilot analysis ->
+  Quiz/Flashcards/Mind Maps) reusing data the student already entered.
+DEPENDENCIES: assess/quiz grading pipeline (reused unchanged);
+  AI provider key for generation (honest errors without one).
+RISK: Low - additive; quiz check/finish/results paths untouched;
+  StudyMaterialInput kept for Summary Practice.
+SCOPE: src/lib/study/* (new), src/lib/assess/*, src/lib/actions/
+  study.ts (new) + assess.ts (strengths), quiz-runner, flashcards/
+  mindmap studios + pages, app-shell nav, smoke, tests.
+VERIFICATION METHOD: 108/108 vitest (14 new); tsc clean; lint 0
+  errors; build OK; smoke 18/18 incl. new pages.
+UPGRADE OPPORTUNITY: Conversation-scoped study sessions; spaced-
+  repetition due queue surfacing in Today.
+IMPLEMENTATION NOTES: Drive-bys inside this change: set-state-in-
+  effect defaults replaced with render-time derivation (PL-011 rule);
+  sync helpers kept out of "use server" modules (build rule);
+  strongTopicsFromGrading added (strengths need 2+ clean answers -
+  never overinterpret one question).

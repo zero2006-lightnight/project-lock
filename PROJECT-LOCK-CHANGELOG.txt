@@ -1,0 +1,1112 @@
+=====================================================================
+ PROJECT-LOCK — DEVELOPMENT CHANGELOG
+ (PROJECT-LOCK-CHANGELOG.txt)
+=====================================================================
+ Historical record of every completed improvement.
+ Entries below #1 were completed before the controlled-improvement
+ process was adopted; they are imported here for a complete history
+ and were re-verified against the source during the 2026-09-06 audit.
+=====================================================================
+
+DATE: 2026-08-30 → 2026-09-04 (initial build, pre-process)
+SUGGESTION ID: n/a (foundation phases 1–10)
+TITLE: StudyPilot full MVP build
+
+WHAT WAS FOUND: No project existed.
+WHAT WAS CHANGED: Complete product build — Next.js + TypeScript +
+  Tailwind + shadcn-style UI system, SQLite/Drizzle data layer with
+  normalized schema + demo seed, scrypt auth + sessions, deterministic
+  planning engine (scoring, scheduling, adaptive redistribution, exam
+  roadmaps, readiness, stats, insights), AI provider abstraction with
+  offline engine fallback, all 17 screens, light/dark/system theming,
+  responsive shell, QA tooling (smoke, visual-qa, flow-qa, ai-qa).
+FILES/MODULES AFFECTED: entire repository (~90 source files).
+WHY THE CHANGE WAS MADE: product mandate.
+TESTS PERFORMED: tsc clean, 19/19 vitest (engine + stats), production
+  build, 14/14 smoke with real session.
+VERIFICATION RESULT: all green (re-verified 2026-09-06).
+REGRESSION CHECK: n/a (initial build).
+NEW ISSUES DISCOVERED: mobile grid min-content blowout (fixed same
+  week, see #1).
+NEW SUGGESTIONS CREATED: many — see backlog PL-006…PL-022.
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-04
+SUGGESTION ID: n/a (imported; backlog equivalent PL-016 phase 1 scope)
+TITLE: Mobile dashboard 111px horizontal overflow (grid blowout)
+
+WHAT WAS FOUND: On a 390px viewport the dashboard hero cards rendered
+  484px wide — classic grid min-content blowout from nowrap truncating
+  rows in an implicit auto column.
+WHAT WAS CHANGED: Base-layer CSS rule giving bare `.grid` elements one
+  shrinkable minmax(0, 1fr) column; explicit grid-cols-* utilities
+  (e.g. calendar grid-cols-7) still override.
+FILES/MODULES AFFECTED: src/app/globals.css.
+WHY THE CHANGE WAS MADE: mobile-first product mandate.
+TESTS PERFORMED: DOM probe of track widths; flow-qa mobile pass.
+VERIFICATION RESULT: 0px horizontal overflow on dashboard + today.
+REGRESSION CHECK: calendar month grid unaffected.
+NEW ISSUES DISCOVERED: none.
+NEW SUGGESTIONS CREATED: —
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-04
+SUGGESTION ID: n/a (imported; now tracked as PL-016)
+TITLE: Month calendar view + drag-and-drop rescheduling
+
+WHAT WAS FOUND: Calendar was week-only; no manual rescheduling existed.
+WHAT WAS CHANGED: Client week+month calendar with native HTML5 DnD;
+  server movePlanItem with past-guard, topic-dedup, day-capacity rules;
+  loadCalendarData (plan −45d…future, tasks, exams); data-* test hooks.
+FILES/MODULES AFFECTED: src/components/app/calendar-view.tsx,
+  src/lib/services/plan.ts, src/lib/actions/planning.ts,
+  src/lib/services/data.ts, calendar page.
+WHY THE CHANGE WAS MADE: user-requested feature phase.
+TESTS PERFORMED: move semantics vs real DB (past refused, capacity
+  refused 2.7h/2.8h, future move OK, completed refused, state restored);
+  build + smoke 14/14; headless visual QA light+dark, zero console
+  errors.
+VERIFICATION RESULT: green. Browser-level drag gesture itself NOT
+  VERIFIED by automation (headless Chrome limitation) — service and
+  action fully tested; UI gesture confirmed by user.
+REGRESSION CHECK: full smoke green.
+NEW ISSUES DISCOVERED: touch/keyboard drag absent → PL-016.
+NEW SUGGESTIONS CREATED: PL-016.
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-05
+SUGGESTION ID: n/a (imported; now tracked as PL-005)
+TITLE: Real AI provider wiring + tutor/quiz/flashcards E2E
+
+WHAT WAS FOUND: AI layer provider-ready but never exercised against a
+  real model; OpenAI key had no credits (429).
+WHAT WAS CHANGED: .env → Groq free tier via OpenAI-compatible adapter
+  (model qwen); E2E script scripts/ai-qa.mjs driving the real chat UI.
+  Two real bugs found and fixed: (a) AiReplySchema.partial() let a
+  model reply without "reply" pass validation into a NOT NULL column —
+  schema now always enforced in full; (b) provider exceptions left the
+  chat UI stuck on "thinking" — action now catches and toasts.
+FILES/MODULES AFFECTED: .env, src/lib/ai/router.ts,
+  src/lib/actions/chat.ts, scripts/ai-qa.mjs.
+WHY THE CHANGE WAS MADE: user request — prove the LLM path end to end.
+TESTS PERFORMED: browser E2E — tutor 1329-char structured reply, quiz
+  3 questions, 5 contextual flashcards, Settings provider "active",
+  zero console errors; tsc + build green.
+VERIFICATION RESULT: green (free-tier rate limits noted).
+REGRESSION CHECK: smoke 14/14 after fixes.
+NEW ISSUES DISCOVERED: streaming absent → PL-008.
+NEW SUGGESTIONS CREATED: PL-008.
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-05
+SUGGESTION ID: n/a (imported; now tracked as PL-003)
+TITLE: Onboarding wizard never silently disables Continue
+
+WHAT WAS FOUND: Continue button was disabled until a subject name was
+  typed; pressing it on an empty step did nothing with no explanation —
+  user reported being stuck.
+WHAT WAS CHANGED: Continue always responds; incomplete steps show an
+  explicit hint naming exactly what to fill; first input auto-focuses.
+FILES/MODULES AFFECTED: src/components/app/onboarding-wizard.tsx.
+WHY THE CHANGE WAS MADE: user-reported blocker.
+TESTS PERFORMED: headless walkthrough of all steps, hints fire on
+  empty steps, zero console errors.
+VERIFICATION RESULT: green.
+REGRESSION CHECK: typecheck + build green.
+NEW ISSUES DISCOVERED: none.
+NEW SUGGESTIONS CREATED: —
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-05
+SUGGESTION ID: n/a (imported; now tracked as PL-004)
+TITLE: Google OAuth sign-in
+
+WHAT WAS FOUND: Email/password only.
+WHAT WAS CHANGED: GET /auth/google (state cookie CSRF guard) →
+  GET /auth/google/callback (code exchange, verified-email profile,
+  upsert-by-email, session, onboarding-aware redirect); button on
+  login/signup when configured; friendly error banners.
+FILES/MODULES AFFECTED: src/app/auth/google/*, src/lib/auth/google.ts,
+  src/components/auth/auth-form.tsx, login/signup pages, .env.example.
+WHY THE CHANGE WAS MADE: user request (Google Cloud Console OAuth).
+TESTS PERFORMED: consent redirect 307 correct; real Google consent page
+  rendered (HTTP 200); failure paths redirect with friendly banners;
+  button renders when configured. Full interactive account creation
+  NOT VERIFIED (requires human consent click).
+VERIFICATION RESULT: green for all automatable checks.
+REGRESSION CHECK: tsc + build green.
+NEW ISSUES DISCOVERED: LAN-IP redirect URI limitation (documented);
+  GitHub provider opportunity → PL-017.
+NEW SUGGESTIONS CREATED: PL-017.
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-06
+SUGGESTION ID: PL-001 + PL-002
+TITLE: LAN-IP cookie rejection + fresh-account dashboard crash
+
+WHAT WAS FOUND: (1) Production builds marked the session cookie Secure;
+  browsers silently reject Secure cookies over plain HTTP on
+  non-localhost hosts — user on http://192.168.56.1:3000 was bounced to
+  /login the moment onboarding finished (cookie trace: 0 cookies
+  stored). (2) The fix exposed a second crash: fresh accounts with no
+  topics have no plan blocks, and relativeDay("") threw
+  RangeError: Invalid time value on the dashboard.
+WHAT WAS CHANGED: (1) Session cookie Secure flag now derived from the
+  real request protocol (x-forwarded-proto aware) — session.ts; same
+  for the OAuth state cookie, plus request-origin fallback for the
+  OAuth redirect base — auth/google/route.ts. (2) Dashboard renders
+  relativeDay only when data.today exists; Today page falls back to
+  todayISO() — app/page.tsx, today/page.tsx.
+FILES/MODULES AFFECTED: src/lib/auth/session.ts,
+  src/app/auth/google/route.ts, src/app/app/page.tsx,
+  src/app/app/today/page.tsx, README (troubleshooting).
+WHY THE CHANGE WAS MADE: user-reported blocker ("after login I am not
+  going to front").
+TESTS PERFORMED: cookie-level CDP trace; full browser E2E on
+  http://192.168.56.1:3000 (signup → all steps → dashboard, zero
+  console/server errors); DB check (onboarded=1); typecheck, 19/19
+  tests, build, smoke 14/14; test accounts cleaned up.
+VERIFICATION RESULT: green.
+REGRESSION CHECK: localhost flow re-verified implicitly via smoke.
+NEW ISSUES DISCOVERED: the crash class shows Next's default error page
+  → PL-006 (error boundaries) promoted to next-up.
+NEW SUGGESTIONS CREATED: PL-006.
+FINAL STATUS: COMPLETED (both)
+=====================================================================
+
+DATE: 2026-09-06
+SUGGESTION ID: PL-006
+TITLE: Root error boundary + not-found page
+
+WHAT WAS FOUND: No src/app/error.tsx, global-error.tsx or not-found.tsx
+  existed — any server crash (the PL-002 class) rendered Next's default
+  off-brand error screen.
+WHAT WAS CHANGED: Added branded route-segment error boundary (Try again
+  reset + dashboard link + digest display), branded 404 page, and a
+  minimal global-error boundary (own html/body, inline styles — root
+  CSS unavailable there).
+FILES/MODULES AFFECTED: src/app/error.tsx, src/app/not-found.tsx,
+  src/app/global-error.tsx (all new).
+WHY THE CHANGE WAS MADE: graceful on-brand degradation for any future
+  crash; direct follow-up to the week's incident.
+TESTS PERFORMED: tsc clean; build green; smoke 14/14 (confirms the new
+  boundaries don't intercept healthy routes).
+VERIFICATION METHOD NOTE: live error-page render was NOT VERIFIED via a
+  thrown route error (would require shipping a defect); markup verified
+  by build + the boundary contract is Next.js-tested behavior.
+REGRESSION CHECK: full smoke 14/14 green.
+NEW ISSUES DISCOVERED: none.
+NEW SUGGESTIONS CREATED: —
+FINAL STATUS: COMPLETED
+=====================================================================
+
+DATE: 2026-09-06
+SUGGESTION ID: PL-007
+TITLE: Per-user rate limiting + prompt-injection hardening on AI chat
+
+WHAT WAS FOUND: sendChatMessageAction had no per-user call limit
+  (unbounded LLM cost/abuse) and raw user text was interpolated into the
+  LLM system context unguarded.
+WHAT WAS CHANGED: (1) src/lib/security/rate-limit.ts — in-memory
+  sliding-window limiter (single-instance by design; shared-store noted
+  for the Postgres phase), 20 msgs / 5 min per user, throttle feedback
+  surfaced as a chat toast. (2) src/lib/security/guard.ts — control-char
+  stripping, identical-line collapse, <<<USER_MESSAGE>>> delimiters +
+  untrusted-input directive in the system prompt. (3) Wired into
+  sendChatMessageAction (limit → sanitize → persist → respond) and
+  freeformOrTutor (wrapUntrusted on the model input).
+FILES/MODULES AFFECTED: src/lib/security/* (new), src/lib/actions/chat.ts,
+  src/lib/ai/router.ts, tests/security.test.ts (new), scripts/ai-qa.mjs
+  (test harness fixes only).
+WHY THE CHANGE WAS MADE: the one endpoint that spends money and talks to
+  a model had two unclosed exposures; blast radius bounded by design but
+  worth closing.
+TESTS PERFORMED: 12 new unit tests (31 total, all pass) — including two
+  that caught real bugs in my first draft (self-extending block window;
+  off-by-one spam collapse) before deployment; tsc; build; smoke 14/14;
+  LLM chat E2E regression through the secured path (tutor 1389 chars,
+  quiz 3 questions, flashcards Q/A — distinct contextual replies read
+  from DB ground truth; zero console errors).
+VERIFICATION RESULT: all green.
+REGRESSION CHECK: smoke 14/14 + chat E2E green on the secured path.
+NEW ISSUES DISCOVERED: ai-qa.mjs harness had three flaws (stale profile
+  session auto-redirect past login; DOM bubble reads race React; shared
+  bubble classes made history look like replies) — fixed by profile
+  wipe per run + DB ground-truth polling. No app defects.
+NEW SUGGESTIONS CREATED: PL-013 (auth-endpoint rate limiting, P2 —
+  limiter reusable as-is).
+FINAL STATUS: COMPLETED
+=====================================================================
+
+ENTRY #10
+DATE: 2026-09-06
+SUGGESTION ID: PL-013
+TITLE: Rate limiting on auth endpoints (login/signup brute-force defense)
+
+WHAT WAS FOUND: loginAction/signupAction accepted unlimited attempts;
+  scrypt made online guessing slow but not free; OAuth callback token
+  exchange was also unbounded. The PL-007 limiter was generic and ready
+  to reuse — only auth-specific wiring was missing.
+
+WHAT WAS CHANGED: New src/lib/security/request-key.ts
+  (clientIpFromHeaders — x-forwarded-for first hop, x-real-ip fallback,
+  "local" for direct access; retryMinutes). authRateLimit() guard in
+  src/lib/auth/actions.ts: login keyed per-email (5/15min, NAT-safe)
+  plus per-IP (30/15min); signup per-IP (5/hour). Google OAuth callback
+  limited 10/15min per IP, fail-closed → /login?error=google_rate:<m>
+  with a friendly banner (new resolveAuthError parser on the login page).
+
+FILES/MODULES AFFECTED: src/lib/auth/actions.ts,
+  src/app/auth/google/callback/route.ts, src/app/login/page.tsx,
+  src/lib/security/request-key.ts (new), tests/request-key.test.ts (new),
+  scripts/tmp-auth-throttle.mjs (temporary, removed).
+
+WHY THE CHANGE WAS MADE: Online brute force against login (and abuse of
+  the callback's outbound calls) had no cost ceiling. Limits are
+  deliberately generous because the user accesses via a shared LAN IP.
+
+TESTS PERFORMED: 6 new unit tests (37 total, all pass) covering XFF
+  parsing, fallbacks, NAT keying and retry-minute rounding. Live browser
+  hammer test through the real login form: attempts 1-5 → normal auth
+  error; attempt 6+ → "Too many sign-in attempts … 15 minute(s)";
+  different email on same IP → unaffected; zero console errors. tsc;
+  build; smoke 14/14.
+
+VERIFICATION RESULT: all green; live throttle behavior matches design
+  exactly (server-side debug line confirmed counts climb 1→5 then block).
+
+REGRESSION CHECK: full gates re-run after removing debug logging —
+  tsc clean, 37/37 tests, build OK, smoke 14/14.
+
+NEW ISSUES DISCOVERED: the live test initially LOOKED like the limiter
+  was broken; instrumentation proved the app was fine — the harness was
+  calling requestSubmit() while the submit button was disabled mid-
+  action, so submissions were silently dropped and the stale alert
+  matched. Lesson recorded: anchor UI tests on the pending cycle
+  (spinner appear → clear), never on stale DOM text.
+
+NEW SUGGESTIONS CREATED: none (post-audit found no new debt; the
+  in-process limiter's multi-instance limitation is already documented
+  inside rate-limit.ts and revisited by the Postgres phase PL-009).
+FINAL STATUS: COMPLETED
+=====================================================================
+
+ENTRY #11
+DATE: 2026-09-06
+SUGGESTION ID: PL-011
+TITLE: ESLint debt: 20 errors, 39 warnings
+
+WHAT WAS FOUND: lint reported 83 errors / 13,575 warnings — but the true
+  app debt was 20 errors / 40 warnings. The explosion came from
+  scripts/.chrome-profile/ (QA browser residue containing minified
+  third-party Chrome extension bundles that flat-config ESLint, which
+  does not read .gitignore, happily linted). Residue deleted; config
+  hardened with globalIgnores for venv/data/QA profiles/screenshots.
+
+WHAT WAS CHANGED: All 20 errors fixed by class, no suppressions:
+  14× react/no-unescaped-entities (apostrophes → &apos;; render
+  identical); 2× no-explicit-any in charts.tsx (proper TooltipEntry
+  type); 4× react-hooks/set-state-in-effect — theme-toggle.tsx rewritten
+  to useSyncExternalStore + sp-theme-change event (React-documented
+  external-store pattern), dialog.tsx rewritten as a single
+  closed/opening/open-vis/closing phase machine with render-time prop
+  adjustment, syllabus-manager AddTopicDialog form reset via remount-key
+  (sequence counter bumped on open so exit animation still plays).
+  All 39 warnings cleared: unused imports/locals removed; the
+  curriculum.ts requireUser bindings kept where user.id is the
+  ownership WHERE clause (my batch edit briefly broke this — tsc caught
+  it, restored 9 sites, kept bare-guard await for 6 unused ones).
+
+FILES/MODULES AFFECTED: eslint.config.mjs, src/app/app/page.tsx,
+  src/app/app/progress/page.tsx, src/app/app/subjects/page.tsx,
+  src/app/app/today/page.tsx, src/app/page.tsx,
+  src/components/app/{app-shell,calendar-view,charts,chat-view,exam-
+  manager,onboarding-wizard,plan-item-row,syllabus-manager,task-
+  manager}.tsx, src/components/ui/{dialog,theme-toggle}.tsx,
+  src/lib/actions/{curriculum,onboarding}.ts, src/lib/db/demo.ts,
+  src/lib/engine/schedule.ts, src/lib/services/{achievements,analytics,
+  chat,data,plan}.ts, scripts/{ai-qa,flow-qa,visual-qa}.mjs.
+
+WHY THE CHANGE WAS MADE: Lint must be a trustworthy CI gate (PL-010).
+  The set-state-in-effect rewrites also future-proof against React's
+  coming behavior changes and remove cascading-render risk.
+
+TESTS PERFORMED: lint 0 problems; tsc clean; 37/37 unit tests; build
+  OK; smoke 14/14; PLUS a dedicated interactive browser regression for
+  the two rewritten primitives: dialog open → Escape → exit-animation
+  unmount → reopen-with-fresh-state all pass; theme toggle cycles
+  (system→light→dark) with html.dark sync and localStorage persistence;
+  zero console errors. Temp verification script removed after pass.
+
+VERIFICATION RESULT: all green.
+
+REGRESSION CHECK: full gate suite above; interactive dialog/theme
+  behavior verified unchanged (or better) after rewrite.
+
+NEW ISSUES DISCOVERED: achievements bug (see below) was found BY the
+  lint cleanup, not by a failure.
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED
+
+BUG FOUND & FIXED DURING PL-011 (not a lint issue itself):
+  src/lib/services/achievements.ts computed subjectsCompleted but never
+  wired it into the achievement values map — subject_first ("Finish
+  your first subject syllabus") and subject_all ("Syllabus Slayer")
+  could NEVER unlock for any user. Both now derive from
+  subjectsCompleted with a zero-subjects guard on subject_all.
+  Verified by code inspection + full test suite; live unlock flow NOT
+  separately exercised (would need a fully completed subject fixture).
+=====================================================================
+
+ENTRY #12
+DATE: 2026-09-06
+SUGGESTION ID: PL-010
+TITLE: CI pipeline (GitHub Actions): typecheck + tests + build + smoke on every push
+
+WHAT WAS FOUND: No .github directory; all gates manual. Also discovered
+  `npm ci` FAILED on the repo as-is: package.json carried unsatisfiable
+  ranges (`lucide-react: "^0.5"` — no such version) alongside exact
+  pins, so CI would have died at the install step. Separately found
+  that the project sits UNTRACKED inside a home-directory git repo
+  (C:/Users/aKris → Krishna.git) — no push of the project itself has
+  ever happened, so a workflow file alone cannot produce a runner run.
+
+WHAT WAS CHANGED: .github/workflows/ci.yml — one `verify` job on
+  ubuntu-latest, Node 24 (matches local runtime), npm cache, push/PR/
+  manual triggers, concurrency cancellation. Sequence mirrors the local
+  gate suite: lint → typecheck → tests → build → smoke (smoke boots its
+  own server on :3100, pure fetch — no browser needed in CI). All deps
+  pinned to exact locked versions (lucide-react 1.41.0, recharts
+  3.10.1, zod 4.5.4, etc.) and the lockfile regenerated via
+  `npm install --package-lock-only`; `npm ci --dry-run` now exits 0.
+
+FILES/MODULES AFFECTED: .github/workflows/ci.yml (new), package.json,
+  package-lock.json.
+
+WHY THE CHANGE WAS MADE: Regressions could land silently; every gate
+  depended on discipline. Exact pins make CI reproducible and make
+  `npm ci` (which requires lockfile/package.json agreement) possible.
+
+TESTS PERFORMED: YAML structure parsed and step list verified (js-yaml);
+  `npm ci --dry-run` exit 0; workflow file confirmed not git-ignored
+  (git check-ignore); full local gate suite after the dependency
+  repin: lint 0 problems, tsc clean, 37/37 tests, build OK, smoke 14/14.
+
+VERIFICATION RESULT: everything verifiable locally is green. The live
+  GitHub Actions runner run is NOT VERIFIED — impossible until the
+  project is pushed to GitHub as its own repository. Stated per rule 19.
+
+REGRESSION CHECK: full gate suite green after repinning dependencies
+  (the repin was the only runtime-affecting change; versions match the
+  lockfile that was already installed locally).
+
+NEW ISSUES DISCOVERED: the untracked-project/git-repo-mismatch (above)
+  is the blocking dependency for the live CI run.
+NEW SUGGESTIONS CREATED: none (repo separation is a user action, not a
+  code change; noted in the backlog summary).
+FINAL STATUS: PARTIALLY COMPLETED — workflow shipped; live run pending push.
+=====================================================================
+
+ENTRY #13
+DATE: 2026-09-06
+SUGGESTION ID: PL-010 (completion) + repo push
+TITLE: Push to GitHub; live CI run watched to green
+
+WHAT WAS FOUND: User provided the repo URL
+  (github.com/ReddyKrishna-web/project-lock). Pre-flight audit before
+  staging found two .gitignore gaps (venv/, QA browser profile
+  patterns) — fixed before anything was staged. Staged tree audited:
+  secret scan over all staged content (Groq/OpenAI/Google key patterns)
+  came back clean; .idea/ IDE config excluded and ignored. 119 files
+  committed on main and pushed.
+
+WHAT WAS CHANGED: Commit 1df62a5 (full app + governance + CI), then
+  fix commit 163b785: sqlite busy_timeout=10000 pragma.
+
+FILES/MODULES AFFECTED: .gitignore, .github/workflows/ci.yml,
+  package.json, package-lock.json, src/lib/db/index.ts, entire src/.
+
+WHY THE CHANGE WAS MADE: PL-010's live-run dependency. The busy_timeout
+  fix: CI's first run failed at Build with "SqliteError: database is
+  locked" — on a fresh checkout, Next's parallel build workers all open
+  the empty DB and race the first-time migration + demo seeding;
+  local builds never hit it because the DB was already seeded (no
+  writes → no race). Root cause read from the real CI job log via the
+  authenticated API.
+
+TESTS PERFORMED: git check-ignore audit of env/db/venv/node_modules/
+  profiles BEFORE staging; staged-content secret scan; fresh-clone
+  repro (clone → npm ci → build) on Windows passed, isolating the
+  failure to the empty-DB Linux path; after fix: tsc, 37/37 tests,
+  build, smoke 14/14 locally, then pushed and WATCHED the Actions run.
+
+VERIFICATION RESULT: CI run 34028826433 (first push) = failure at
+  Build; CI run 34029152014 (after fix) = SUCCESS — every step green
+  (lint, typecheck, tests, build, smoke). Verified via GitHub API.
+
+REGRESSION CHECK: full local gate suite green after the pragma change;
+  CI green on the fix commit itself.
+
+NEW ISSUES DISCOVERED: none open. (Note for PL-009: Postgres migration
+  will remove the SQLite writer-contention class entirely.)
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: PL-010 flipped to COMPLETED. Repo:
+  https://github.com/ReddyKrishna-web/project-lock
+=====================================================================
+=====================================================================
+ENTRY #14 — PL-008: Streaming AI chat (token-by-token)
+=====================================================================
+DATE: 2026-09-06
+SUGGESTION ID: PL-008
+TITLE: Stream AI chat responses token-by-token
+
+WHAT WAS FOUND: Chat awaited the complete validated JSON reply before
+  rendering anything (one server action, no streaming route). Provider
+  abstraction had no streaming capability.
+
+WHAT WAS CHANGED:
+  - src/lib/ai/types.ts: AIProvider gained optional stream(system, user,
+    opts, onDelta) — providers without it fall back to complete().
+  - src/lib/ai/provider.ts: OpenAICompatibleProvider.stream() parses
+    OpenAI-dialect SSE (Groq-compatible), emits onDelta per token,
+    accumulates the full text, skips malformed keepalive frames.
+  - src/lib/ai/router.ts: prompt construction extracted into exported
+    llmChatParams(ctx, message, intent, history, mode: "json" | "text")
+    shared by both transports (JSON-mode line only in json mode); added
+    exported isLlmIntent()/detectIntent reuse. freeformOrTutor now calls
+    the shared builder — zero prompt drift between paths.
+  - src/app/api/chat/route.ts (NEW): SSE route. Chain identical to the
+    action: currentUser auth -> 2000-char zod validation -> per-user rate
+    limit -> sanitizeUserText -> persist user msg -> stream. Deterministic
+    intents stream one chunk then done{}; LLM intents stream deltas then
+    done{} (authoritative, carries validated meta actually persisted);
+    any failure emits error{} and closes cleanly; empty stream falls back
+    to the deterministic responder so the conversation never dies.
+  - src/components/app/chat-view.tsx: send() uses fetch + ReadableStream
+    reader, appends delta frames into state (thinking indicator swaps to
+    growing bubble on first delta), done record is authoritative (final
+    content + actions/suggested + session list update). 401/429/400
+    handled with honest toasts. Server action removed from client.
+
+FILES/MODULES AFFECTED: src/lib/ai/types.ts, src/lib/ai/provider.ts,
+  src/lib/ai/router.ts, src/app/api/chat/route.ts (new),
+  src/components/app/chat-view.tsx
+
+WHY THE CHANGE WAS MADE: Perceived latency for tutor/freeform replies
+  dominated by model generation time; streaming shows text as it is
+  produced. Explicitly requested by the user (PL-008).
+
+TESTS PERFORMED: tsc --noEmit clean; eslint 0 problems; 37/37 vitest;
+  next build OK; smoke 14/14; LIVE E2E against production server with
+  real Groq key: deterministic intent -> delta+done framing; LLM intent
+  -> 349 delta frames, first token 7ms, last 698ms, reply grounded in
+  the student's real weak topics; no error events.
+
+VERIFICATION RESULT: STREAM E2E: PASS (script asserted >=3 deltas and
+  a non-empty done reply; observed 349).
+
+REGRESSION CHECK: Server-action path kept as fallback (action still
+  exported for any non-UI callers); full gate suite re-run green after
+  all edits; smoke confirms all app pages still render.
+
+NEW ISSUES DISCOVERED: none open.
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: PL-008 COMPLETED.
+=====================================================================
+ENTRY #15 — Feature pass: UI redesign, Pilot robustness, materials,
+            chat sessions (+ PL-008 streaming recorded in ENTRY #14)
+=====================================================================
+DATE: 2026-09-06
+SUGGESTION ID: (feature request — 3-item user brief) + PL-008
+TITLE: Artistic-minimal UI refresh; general-purpose Pilot; syllabus
+       file uploads with grounded AI; session-based chat
+
+WHAT WAS FOUND: Landing used centered hero + Inter + indigo/violet
+  gradients (the exact patterns the taste-skill/impeccable guides flag
+  as the generic AI look); Pilot misrouted broad queries to the tutor
+  intent, had no conversation memory, and surfaced provider errors as
+  dead ends; no file-upload path existed; chat always resumed the
+  newest conversation with no session concept.
+
+WHAT WAS CHANGED: Design tokens (cobalt + cream identity, Outfit/
+  Inter Tight), asymmetric hero, 18 gradient marks replaced with the
+  single cobalt identity, avatar palette, mock dashboard colors;
+  intent-order fix + memory + retry/fallback in the router; materials
+  table + extraction service (pdf-parse/mammoth/xlsx) + upload/delete
+  actions + syllabus materials panel; chat sessions (fresh per login,
+  past-sessions drawer, wrap-up on logout); SSE streaming chat
+  (detailed in ENTRY #14).
+
+FILES/MODULES AFFECTED: globals.css, layout.tsx, page.tsx, error.tsx,
+  not-found.tsx, auth pages, app-shell, chat-view, onboarding-wizard,
+  avatar.tsx, ai/router.ts, ai/types.ts, ai/provider.ts, api/chat/
+  route.ts (new), db/schema.ts + 2 migrations, services/chat.ts,
+  services/extract.ts (new), actions/{chat,sessions,materials}.ts
+  (2 new), syllabus page, materials-panel.tsx (new).
+
+TESTS PERFORMED: tsc clean; eslint 0; 37/37 vitest; build OK;
+  smoke 14/14; landing QA in headless Chrome (0 console errors, 0
+  horizontal overflow, hero/CTA visible, desktop + 390px mobile);
+  live STREAM E2E (349 deltas, first token 7ms).
+
+VERIFICATION RESULT: All gates green locally; GitHub Actions run
+  34034551317 on push 506562a: completed / success.
+
+REGRESSION CHECK: Smoke covers all app pages; dialog/theme primitives
+  were not touched this pass; full suite re-run after every stage.
+
+NEW ISSUES DISCOVERED: image uploads carry no text (tracked as
+  PL-024); material selection is recency-based, not semantic
+  (tracked as PL-023).
+NEW SUGGESTIONS CREATED: PL-023, PL-024.
+FINAL STATUS: All three user items shipped; PL-008 COMPLETED.
+=====================================================================
+ENTRY #16 — PL-012: Remove dead SESSION_SECRET configuration
+=====================================================================
+DATE: 2026-09-06
+SUGGESTION ID: PL-012
+TITLE: SESSION_SECRET env var is dead configuration
+
+WHAT WAS FOUND: SESSION_SECRET was present in .env and .env.example
+  and documented in README.md and Process&Architectute.txt, but read
+  nowhere in src (git grep across tracked files). Sessions actually
+  use 32-byte random DB-backed tokens via hashToken().
+
+WHAT WAS CHANGED: Removed the variable and its comment line from
+  .env and .env.example, and removed the documentation bullets from
+  README.md and Process&Architectute.txt. No code changes were needed
+  or made — the honest minimal fix per the suggestion's own
+  recommendation.
+
+FILES/MODULES AFFECTED: .env, .env.example, README.md,
+  Process&Architectute.txt (docs/config only).
+
+WHY THE CHANGE WAS MADE: Dead configuration misleads operators into
+  thinking rotation matters. A hashing pepper was deliberately NOT
+  introduced instead: session tokens are already unguessable, so a
+  pepper would add complexity without security value (rule 15).
+
+TESTS PERFORMED: git grep confirms zero references in tracked files
+  (excluding the backlog's historical record); npm run lint clean;
+  tsc --noEmit clean; 37/37 vitest; next build OK; smoke 14/14
+  (exercises real session-cookie flows: login, app pages, logout).
+
+VERIFICATION RESULT: All gates green; no behavioral change possible
+  since the variable was never read.
+
+REGRESSION CHECK: Smoke's authenticated page checks all passed with
+  the variable absent — nothing at boot or runtime expected it.
+
+NEW ISSUES DISCOVERED: none.
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: PL-012 COMPLETED. Next unblocked per priority:
+  PL-015 (PDF syllabus import), which can reuse the extraction
+  service added in the materials feature.
+=====================================================================
+ENTRY #17 — PL-015: PDF syllabus import (extraction + AI parsing)
+=====================================================================
+DATE: 2026-09-06
+SUGGESTION ID: PL-015
+TITLE: PDF syllabus import (extraction + AI parsing)
+
+WHAT WAS FOUND: Syllabus entry was manual-only; onboarding copy
+  promised future import support. During E2E, a second bug surfaced:
+  extract.ts targeted a pdf-parse module shape (plain text() export)
+  that does not match the installed v2.4.5 (PDFParse class with
+  getText()) — PDF text extraction was broken for uploads.
+
+WHAT WAS CHANGED:
+  - src/lib/services/syllabus-parse.ts (NEW): LLM structuring via
+    askForJson with Zod validation that CLAMPS difficulty (1..5) and
+    TRUNCATES over-cap arrays item-by-item instead of rejecting
+    wholesale (3 test-caught bugs fixed here); deterministic regex
+    heuristic fallback (unit/module/chapter headings, noise-line
+    filter, min-signal threshold of 8 topics without headings).
+  - src/lib/actions/import.ts (NEW): parseSyllabusImportAction
+    (validate → extract → parse → single-use 48-hex preview token,
+    15-min TTL) and commitSyllabusImportAction (token single-use +
+    user-bound, ownership re-checked, user-EDITED preview wins,
+    caps 12 units/40 topics per import).
+  - src/components/app/syllabus-import.tsx (NEW): import dialog —
+    file picker → parse → editable preview tree (rename subject/
+    units/topics, difficulty, remove) → confirm; honest AI/engine
+    source badge and warnings.
+  - src/lib/services/extract.ts: extractPdf rewritten to support
+    pdf-parse v2.4+ class API (new PDFParse({data}).getText() with
+    destroy()) AND the legacy function shape — fixes broken PDF
+    extraction for materials uploads too.
+  - src/app/app/syllabus/page.tsx: "Import syllabus" button wired.
+  - tests/syllabus-parse.test.ts (NEW): 6 tests — heuristic parse,
+    noise/signal thresholds, caps, schema clamping/truncation.
+  - scripts/pdf-import-qa.ts (NEW, kept as QA): builds a real PDF in
+    memory, runs production extraction + parse paths.
+
+FILES/MODULES AFFECTED: as above (2 new services/actions, 2 new
+  components/tests, 1 QA script, extract.ts fix, syllabus page).
+
+WHY THE CHANGE WAS MADE: Typing a full syllabus is the largest
+  onboarding cost (PL-015); preview/confirm flow contains parsing
+  quality risk; nothing touches the DB without explicit confirmation.
+
+TESTS PERFORMED: 43/43 vitest (6 new); tsc clean; eslint 0;
+  build OK; smoke 14/14; PDF IMPORT E2E: real hand-built PDF →
+  539 chars extracted → AI parse (Groq) → 4 units / 12 topics,
+  subject renamed from filename, all units correct.
+
+VERIFICATION RESULT: PASS (live AI path + deterministic fallback
+  both exercised; heuristic path covered by unit tests).
+
+REGRESSION CHECK: Full gate suite green; the extract.ts fix also
+  repairs PDF material uploads (same code path).
+
+NEW ISSUES DISCOVERED: none open (scanned-PDF/OCR limitation already
+  tracked as PL-024).
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: PL-015 COMPLETED.
+=====================================================================
+ENTRY #18 — Tuning: personalized per-subject knowledge (RAG, not model training)
+=====================================================================
+DATE: 2026-09-07
+SUGGESTION ID: PL-023 (completed) + user brief (Tuning system)
+TITLE: Tuning — subject knowledge bases from user PDFs with grounded,
+        personalized, visual answers
+
+WHAT WAS FOUND: Pilot answered from at most 8 recency-ordered material
+  excerpts; no per-subject memory, no semantic retrieval, no background
+  processing, no visuals beyond text. (Phase 1 audit: provider
+  abstraction + Zod-validated router + sync base64 uploads + no job
+  queue confirmed.)
+
+WHAT WAS CHANGED:
+  - Schema (2 migrations): knowledge_bases, knowledge_documents
+    (raw_blob consumed by the worker, then cleared), knowledge_chunks
+    (section-aware chunks + embedding JSON), tuning_jobs (idempotent
+    queue with backoff), tuning_prefs (adjustable detail level).
+  - src/lib/tuning/: embed (provider /embeddings with deterministic
+    local fallback, per-KB source never mixed), chunk (heading-aware
+    split + overlap), patterns (concepts/definitions/relationships/
+    topic tree/question cues/style notes/summary — all counted, none
+    claimed), query (type/complexity/visual classifier + KB matcher),
+    jobs (DB-backed queue, CAS claim, retry 3x with backoff,
+    fire-and-forget pump so users can leave mid-run), retrieve
+    (user+subject-scoped cosine retrieval, authorized progress
+    signals, deterministic composer with honest thin-coverage path),
+    state (server-rendered dashboard state).
+  - src/lib/actions/tuning.ts: KB CRUD, multi-PDF upload (10/req,
+    15MB, PDF-only, dedupe), retry/delete, scoped ask (10/5min limit),
+    prefs, provider image generation with honest fallback.
+  - AIProvider.generateImage? added (OpenAI images dialect); Tuning
+    visuals prefer structured Mermaid + SVG concept maps + real-data
+    week graphs — never fabricated numbers.
+  - UI: /app/tuning (dashboard, drag-drop upload, live status with
+    real progress, insights, ask panel with subject override + source
+    badges); sidebar Tuning entry. Smoke covers /app/tuning.
+  - tests/tuning.test.ts: 15 tests (pipeline, embeddings, patterns,
+    classifier, retry schedule) — one caught a real bug pre-deploy
+    ("briefly" missed the brevity cue).
+
+FILES/MODULES AFFECTED: schema + 2 migrations, lib/tuning/* (7 new),
+  lib/actions/tuning.ts (new), app/tuning/page + tuning-dashboard
+  (new), app-shell nav, ai/types + provider, scripts/smoke.mjs,
+  tests/tuning.test.ts (new).
+
+WHY THE CHANGE WAS MADE: user brief — an assistant that tunes itself
+  around each student's own materials, subjects, and progress. Called
+  Tuning in UI; internally RAG throughout, never claimed as model
+  training.
+
+TESTS PERFORMED: 58/58 vitest (15 new); tsc clean; eslint 0 errors;
+  build OK; smoke 15/15 (incl. new tuning check); live E2E with a
+  hand-built PDF through upload → pump → retrieval → answer →
+  flowchart spec: PASS (doc ready, 2 chunks, cross-user retrieval 0,
+  KB counts correct after a real ordering fix; throwaway script
+  removed afterwards).
+
+VERIFICATION RESULT: all green.
+
+REGRESSION CHECK: full gate suite + smoke green; chat/materials paths
+  untouched (Tuning is additive; syllabus excerpts unchanged).
+
+NEW ISSUES DISCOVERED: none open. (Single-instance in-process worker
+  documented in jobs.ts; moves to a dedicated worker with PL-009.)
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #19 - PL-025: Tuning Intelligence Engine (decision architecture)
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: PL-025
+TITLE: Tuning Intelligence Engine - understand first, generate last
+
+WHAT WAS FOUND: Tuning answered retrieve-then-generate. No subject
+  priority (single matchKnowledgeBase call), single-label
+  classification, no intent analysis, no response-strategy choice,
+  visuals by keyword only, personalization attached to every answer
+  whether relevant or not, no validation discipline, no preference
+  learning, and the LLM prompt carried raw recency-ordered excerpts.
+
+WHAT WAS CHANGED:
+  - src/lib/tuning/intelligence/ (NEW, 11 modules, pure + tested):
+    types (shared decision vocabulary); subject-detection (explicit
+    > workspace > conversation > auto; explicit never overridden);
+    classify (multi-label, 15 categories, never forced into one);
+    intent (quick_fact/learn/exam_prep/revise/apply from cues, weak
+    areas disambiguate); strategy (A-F selection + section
+    skeletons); visual-decision (visuals earn their place; graphs
+    require real data - never fabricated; image falls back to
+    structured maps without a provider); subject-map (hierarchy
+    generated from sections + co-occurrence, never hard-coded);
+    profile (evidence-based notes only, no personality judgments);
+    context-builder (rank/dedupe/cap 5 passages, scope re-check for
+    user+subject isolation); validator (selective - trivial answers
+    skip; uncertainty block instead of hallucination); pipeline
+    (decideBeforeRetrieval -> scoped retrieval -> decideAfterRetrieval).
+  - src/lib/actions/tuning.ts: askTuningAction runs the pipeline;
+    deterministic composer kept (strategy-aware legacy-plan mapping);
+    LLM prompt now carries budgeted context + strategy instruction +
+    only-relevant personal note; visual_mismatch degrades with an
+    honest sentence; each ask records count-only preference signals.
+  - tuningPrefs.signalsJson (migration 0006) + reset action; dashboard
+    shows suggested-stage learned prefs with a reset control (section 18).
+  - tests/tuning-intelligence.test.ts (NEW): 23 tests, one per
+    section-23 acceptance criterion.
+  - Drive-bys: eslint ignore generalized to scripts/.chrome-*/** (new
+    QA browser profiles re-broke lint with 189 third-party errors -
+    same class as PL-011); unused catch binding in assess/summary.ts.
+
+FILES/MODULES AFFECTED: as above (11 new, 4 edited, 1 migration, 1 test).
+
+WHY THE CHANGE WAS MADE: user brief - the Tuning Intelligence Engine
+  spec (sections 1-23). Staged per the incremental plan: RAG foundation
+  (PL-023) reused, not duplicated; each layer lands as pure decisions
+  before generation.
+
+TESTS PERFORMED: 94/94 vitest (23 new); tsc clean; eslint 0 errors
+  (3 warnings remain, all in untracked scratch QA scripts);
+  next build OK; smoke 16/16 including /app/tuning (migration 0006
+  applied cleanly at boot).
+
+VERIFICATION RESULT: all green.
+
+REGRESSION CHECK: retrieval/composer paths unchanged in behavior
+  (legacy-plan mapping verified by existing tuning tests, still
+  passing); chat/materials/assess paths untouched.
+
+NEW ISSUES DISCOVERED: none open. (Ask panel is stateless, so
+  conversation-context resolution is plumbed but idle - tracked as
+  the PL-025 upgrade opportunity, not a defect.)
+
+NEW SUGGESTIONS CREATED: PL-025 (this entry).
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #20 - PL-026: Study Intelligence Upgrade
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: PL-026
+TITLE: Syllabus-based quiz, general quiz, AI flashcards, AI mind maps
+
+WHAT WAS FOUND: Quiz required pasted material (8-row textbox) even
+  when the syllabus held the content; difficulty (easy/mixed/hard)
+  was stored but only echoed as a word in the prompt; flashcards
+  table existed with zero UI; no mind maps; no Study nav section.
+
+WHAT WAS CHANGED:
+  - src/lib/study/ (NEW shared layer): sources.ts (ownership-checked
+    syllabus context: subject/unit/topic + subject-scoped notes,
+    capped; pure builder unit-tested); difficulty.ts (per-level
+    generation contracts; hard stays inside the material);
+    scheduling.ts (SM-2-lite intervals, prompt coercion).
+  - src/lib/assess/quiz.ts: difficulty block injected into quiz
+    generation; NEW general-quiz path (prompt-validated, general
+    knowledge, same Zod-validated output); strongTopicsFromGrading
+    (strengths need 2+ clean answers).
+  - src/lib/assess/flashcards.ts + mindmaps.ts (NEW): teacher-style
+    flashcard sets (varied kinds, memory tips) and capped structured
+    mind-map JSON (6 branches, 5 children), both Zod-validated.
+  - src/lib/actions/study.ts (NEW): syllabus/general quiz actions
+    (attempts carry source tracking in promptJson - no new tables),
+    flashcard generate/list/grade/delete (existing table, source ai),
+    stateless mind-map action, study-signals action (revision topics
+    + recent server-graded misses). assess.ts finish now returns
+    strongTopics too.
+  - UI: QuizRunner rebuilt around a Syllabus/General toggle with
+    shared SyllabusScopePicker, compact prompt (rows=3), Easy/Medium/
+    Hard; feedback/progress/results preserved + Strengths section.
+    Flashcards studio (generate, flip viewer, Easy/Need practice/Hard
+    ratings, saved decks, "worth reviewing" chips from real signals).
+    Mind-map studio (structured SVG tree, collapse, zoom, responsive
+    scroll). Routes /app/flashcards + /app/mindmaps; nav (desktop
+    Tools, mobile More, titles); smoke covers both.
+  - tests/study.test.ts (NEW): 14 tests - scoping, difficulty
+    contracts, prompt validation, schema caps, scheduling, strengths
+    evidence rule.
+
+FILES/MODULES AFFECTED: 6 new lib modules, 1 new actions file, 3 new
+  components, 2 new pages, quiz-runner + assess.ts edits, nav, smoke,
+  tests. Zero migrations (existing tables reused).
+
+WHY THE CHANGE WAS MADE: user brief - unified AI learning system
+  (Syllabus -> Pilot analysis -> Quiz/Flashcards/Mind Maps), one
+  shared retrieval path, no duplicated syllabus data.
+
+TESTS PERFORMED: 108/108 vitest (14 new); tsc clean; eslint 0 errors
+  (3 pre-existing warnings in untracked scratch QA scripts);
+  next build OK; smoke 18/18 including both new pages.
+
+VERIFICATION RESULT: all green.
+
+REGRESSION CHECK: quiz check/finish/grading untouched (existing
+  assess tests still pass); Summary Practice flow keeps
+  StudyMaterialInput; chat/materials/tuning paths untouched.
+
+NEW ISSUES DISCOVERED: none open. (Build caught a real bug
+  pre-deploy: sync helper exported from a "use server" module -
+  moved to lib/study/scheduling.ts. Lint caught set-state-in-effect
+  defaults - replaced with render-time derivation.)
+
+NEW SUGGESTIONS CREATED: PL-026 (this entry).
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #21 - PL-026 follow-up: flashcard reveal, NotebookLM mind maps,
+saved maps, Pilot connection
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: PL-026 (follow-up)
+TITLE: Flashcard answer reveal, reliable mind-map design, Pilot grounding
+
+WHAT WAS FOUND (user-reported): (1) Flashcards never showed the
+  answer - tap-to-flip was the only reveal path, and the Easy / Need
+  practice / Hard buttons auto-advanced to the next card, so rating
+  felt like skipping. (2) The mind-map SVG tree rendered nothing
+  visible for the user. (3) Mind maps were stateless, so Pilot could
+  not reference them; flashcards were invisible to Pilot too.
+
+WHAT WAS CHANGED:
+  - flashcards-studio Viewer: explicit Show answer / Hide answer
+    buttons (reveal never depends on the flip animation); ratings
+    record recall and stay on the card with a "Marked as ..." state -
+    they never navigate.
+  - mindmap-studio: SVG replaced with a NotebookLM-style HTML tree -
+    central topic pill, one colored branch card per idea, expand /
+    collapse, zoom, horizontal scroll on small screens. Every node is
+    real text, so there is nothing that can render blank.
+  - mindmaps table (migration 0007) + save on every generation +
+    saved-maps list with re-view and delete in the studio.
+  - Pilot connection: ChatContext.studyAids (recent 15 flashcards +
+    recent 5 maps, capped excerpts, owned data only); pure
+    buildStudyAids renderer (src/lib/study/study-aids.ts - DB-free so
+    unit tests never touch migrations); wired into Pilot's system
+    prompt with a cite-your-cards instruction; general answers
+    otherwise unchanged.
+  - 3 new tests for the aids renderer (empty, reference, cap).
+
+TESTS PERFORMED: 111/111 vitest; tsc clean; eslint 0 errors;
+  next build OK; smoke 18/18 (migration 0007 applied cleanly).
+
+VERIFICATION RESULT: all green.
+
+REGRESSION CHECK: quiz/flashcard generation paths untouched;
+  existing study + assess tests still pass.
+
+NEW ISSUES DISCOVERED: none open. (Full-suite vitest run caught a
+  real race pre-deploy: importing services/chat pulled the DB
+  migration chain into a worker - pure renderer moved to
+  lib/study/study-aids.ts.)
+
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #22 - PL-026 follow-up 2: verified reveal, true NotebookLM tree
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: PL-026 (follow-up 2)
+TITLE: Bulletproof flashcard reveal + real tree mind map
+
+WHAT WAS FOUND (user re-reported): answers still not showing on the
+  user's machine; mind map still not NotebookLM-like. Browser repro
+  (Playwright + screenshots as demo) showed both render correctly in
+  a clean Chromium - so the 3D flip was removed as the fragile piece
+  (GPU/backface quirks vary by browser), and the vertical branch list
+  was replaced with a genuine fanning tree.
+
+WHAT WAS CHANGED:
+  - flashcards-studio: 3D flip container replaced with plain
+    conditional front/back panels (soft fade, tap or explicit
+    Show/Hide answer buttons). Nothing depends on backface or GPU
+    transforms anymore.
+  - mindmap-studio: true tree layout (layoutTree, unit-tested) -
+    central topic node, branches alternating left/right with curved
+    bezier connectors, HTML nodes, per-branch accent colors,
+    collapse toggles, zoom, scroll-pan in a capped viewport.
+  - Verified with real-browser screenshots: answer panel with Answer
+    badge + recall + Hide answer renders; tree renders center +
+    both-side branches + connectors with zero console/page errors.
+  - Repro script + seeded rows removed afterwards (DB left as found).
+
+TESTS PERFORMED: 113/113 vitest (2 new layout tests: both-side
+  placement, link-per-node invariant, collapse hides leaves); tsc
+  clean; eslint 0 errors; build OK; smoke 18/18.
+
+VERIFICATION RESULT: all green, screenshots confirmed.
+
+REGRESSION CHECK: flashcard generation/grading untouched; saved
+  decks + mind-map persistence unchanged.
+
+NEW ISSUES DISCOVERED: none open. Note for the user: saved cards and
+  maps are per account - 16 cards + 1 map live under
+  a.lucifer1432@gmail.com, not the demo account; sign in with the
+  account that generated them.
+
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #23 - Neo-brutalism redesign Phase 0 + Phase 1
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: n/a (redesign track: .idea/md/01-07)
+TITLE: Brutal tokens/fonts/lint guard + ui primitives migration
+
+WHAT WAS FOUND: App used soft neumorphic depth (dual blurred shadows,
+  bevels, glass, orbs, shine, tilt-3d) + Zilla Slab/Inter Tight; no
+  guard against soft-shadow regressions. Full redesign spec landed in
+  .idea/md/ (research + tokens + components + pages + roadmap +
+  a11y + QA).
+
+WHAT WAS CHANGED (additive, rollback-safe - old classes aliased):
+  - layout.tsx: Archivo Black / Space Grotesk / JetBrains Mono added
+    alongside existing faces (font-brutal-display/sans/mono tokens).
+  - globals.css: brutal @theme tokens (paper/ink/line, lime/coral/
+    blue/yellow/pink/cyan, semantic + 6 subject fills, 3-tier hard
+    shadows, 6px radii) with runtime --brutal-ink/shadow vars so dark
+    mode inverts to cream borders+shadows; .brutal-press/card/chip/
+    input/ledger/grid/marquee utilities; .tactile/.hover-lift/
+    .card-shadow/.ledger kept as aliases; focus upgraded to 3px solid
+    + 2px offset (yellow in dark); mobile shadow step-down; marquee
+    in reduced-motion kill. Soft-UI classes untouched (Phase 5).
+  - eslint guard (warn): bans shadow-sm/md/lg/xl/2xl, backdrop-blur,
+    bg-gradient- in app/ui/app-components - fires only on the 5 known
+    pre-Phase-2 sites (avatar, dialog, app-shell, mindmap x2).
+  - ui/button: lime primary / white secondary / ink / danger-fill,
+    2px ink borders, hard shadows, mechanical press; md h-11, 6px
+    radius; global 3px focus (base overrides removed).
+  - ui/card: 2px ink + shadow-brutal + Archivo Black titles.
+  - ui/badge: mono uppercase bordered chips with hard sm shadow.
+  - ui/input: h-11, 2px ink, hard blue-shadow focus (no ring blur).
+  - ui/progress: h-4 bordered track, lime fill + ink edge.
+  - ui/skeleton: flat bordered blocks (shimmer removed); empty-state
+    hardened. ui/switch: w-12/h-7, lime-on, bordered knob.
+  - New --color-inkfill token (fixed #111 text on lime/yellow/pink
+    fills so contrast holds in dark mode).
+
+TESTS PERFORMED: tsc clean; eslint 0 errors (8 warnings: 3 pre-
+  existing scratch scripts + 5 intended guard warnings); 113/113
+  vitest; build OK; smoke 18/18; production-CSS check confirms all
+  brutal utilities + 3 fonts generated; full ui-review.mjs capture
+  (37 shots, every route, light+dark, desktop+mobile): 0 console
+  errors, 0 horizontal overflow; dashboard + settings screenshots
+  inspected in both themes.
+
+VERIFICATION RESULT: all green, screenshots confirmed.
+
+REGRESSION CHECK: engine/actions/db untouched (visual only); old
+  class aliases keep every call site rendering.
+
+NEW ISSUES DISCOVERED: none. Next per roadmap: Phase 2 (dialog,
+  toaster, theme-toggle, app-shell).
+
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED (Phase 0 + Phase 1).
+=====================================================================
+ENTRY #24 - Typewriter voice across all UI/UX + dashboard
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: n/a (user request, redesign track)
+TITLE: Special Elite display + Courier Prime body/mono everywhere
+
+WHAT WAS FOUND: Redesign had landed Archivo Black/Space Grotesk/
+  JetBrains Mono; user asked for a typewriter font across the whole
+  product including the dashboard.
+
+WHAT WAS CHANGED:
+  - layout.tsx: Courier_Prime (400/700) + Special_Elite loaded via
+    next/font (display: swap), variables on html + body.
+  - globals.css: --font-sans now Courier Prime (global body voice);
+    --font-display now Special Elite (all h1/h2); brutal tokens
+    repointed (display -> Special Elite, sans+mono -> Courier Prime);
+    display tracking neutralized (typewriter collides under tight
+    grotesk tracking). Archivo/Space/JetBrains stay loaded as
+    fallbacks until Phase 5.
+  - Chosen pair: Special Elite (authentic typewriter, display/stamps
+    only) + Courier Prime (readable monospace, body/chips/inputs) -
+    full typewriter feel without sacrificing small-text legibility.
+
+TESTS PERFORMED: tsc clean; eslint 0 errors; 113/113 vitest; build
+  OK; production-CSS check (both faces + variables present); live
+  screenshots of dashboard + landing (demo session): typewriter
+  headings, body, chips, stamps render; 0 console errors. Temp
+  script + shots removed; dev server stopped.
+
+VERIFICATION RESULT: all green, screenshots confirmed.
+
+REGRESSION CHECK: font-only change; no layout/class/logic edits.
+
+NEW ISSUES DISCOVERED: none.
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED.
+=====================================================================
+ENTRY #25 - Real AI models (OpenRouter/Grok/Gemini) + rollback
+=====================================================================
+DATE: 2026-09-08
+SUGGESTION ID: n/a (user request: 3 keys + rollback + verify)
+TITLE: Multi-provider chain with automatic failover + one-cmd rollback
+
+WHAT WAS FOUND: Single AI_* env config (Groq via OpenAI dialect);
+  no per-provider keys, no failover, no config rollback story.
+
+WHAT WAS CHANGED:
+  - provider.ts: OpenAICompatibleProvider + GeminiProvider take
+    explicit per-key config (legacy env = defaults); new
+    ChainProvider tries members in AI_PRIORITY order for complete/
+    stream/image/vision (members without stream deliver complete()
+    as one honest delta); getAiProvider() returns the chain so all
+    15 call sites fail over with zero edits; describeChain() reports
+    key presence + models (never secrets); getEmbeddingsConfig()
+    routes Tuning embeddings OpenRouter -> legacy -> local.
+    Gemini gained SSE streaming (streamGenerateContent).
+  - embed.ts/state.ts: embeddings + availability via the new config.
+  - settings page: shows live chain ("openrouter -> grok ...") +
+    primary model instead of the single legacy vars.
+  - scripts/ai-config.mjs (new): snapshot (.env -> timestamped
+    backup), restore (one-command rollback, keeps pre-restore copy),
+    status (key presence + models, never values), probe (live
+    endpoint check per provider).
+  - .env.example + README env table document the full contract.
+  - tests/ai-chain.test.ts (new, 12 tests): order, failover,
+    exhaustion error, empty chain, stream fallback, priority
+    parsing, legacy append, no secret leakage, embeddings routing.
+
+LIVE VERIFICATION (real completions, not just endpoint probes):
+  - OpenRouter (openai/gpt-4o-mini): 200 CHAIN-OK.
+  - Gemini: key valid; gemini-2.0-flash retired (404) -> switched
+    to gemini-2.5-flash (from live models list): 200 GEMINI-OK +
+    SSE streaming transport verified.
+  - Groq legacy (existing AI_*): 200 CHAIN-OK (kept as fallback).
+  - xAI Grok: key REJECTED ("Incorrect API key" - gsk_ prefix is
+    Groq-format, not xAI). OPEN ITEM for user: paste a real xAI key
+    (console.x.ai, xai-...) or drop Grok from AI_PRIORITY.
+
+TESTS PERFORMED: tsc clean; eslint 0 errors; 125/125 vitest
+  (12 new; one tuning test flaked once, passes in isolation + 2
+  consecutive full runs); build OK; smoke 18/18.
+
+REGRESSION CHECK: legacy AI_* path preserved as final chain member;
+  .env snapshot pre-multikey taken before keys were written.
+
+NEW SUGGESTIONS CREATED: none.
+FINAL STATUS: COMPLETED (pending real xAI key - see open item).

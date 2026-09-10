@@ -1,0 +1,444 @@
+=======================================================================
+                STUDYPILOT — PROCESS & ARCHITECTURE
+=======================================================================
+Plan smarter. Study better. Stay ahead.
+
+This file explains, in simple English, everything that was built in the
+StudyPilot project from the very beginning to now. It tells you:
+
+  1. What StudyPilot is
+  2. What was done, step by step (the process)
+  3. The folder structure and which files connect to which
+  4. The main pipelines (how data moves through the app)
+  5. The commands used to run and test the app
+  6. Things that were fixed along the way (bugs found and solved)
+  7. What is still waiting to be done
+
+It is written so you can read it yourself and explain the project to
+other people easily.
+
+=======================================================================
+1. WHAT IS STUDYPILOT?
+=======================================================================
+
+StudyPilot is a web application (a "SaaS-style product") that acts like
+an AI study co-pilot for students. A student tells it their subjects,
+syllabus topics, exam dates, assignment deadlines, and how many hours
+they can study. StudyPilot then makes a personal daily study plan that
+changes (adapts) as the student actually studies.
+
+Main parts of the product:
+  - AI-powered study planning (a real planning engine on the device)
+  - AI chat assistant / tutor called "Pilot"
+  - Syllabus manager (subject -> units -> topics with progress)
+  - Daily plan page ("Today") with start/complete/skip/reschedule actions
+  - Exam countdown and exam readiness dashboard with a roadmap
+  - Tasks (assignments, projects, quizzes) and deadlines
+  - Calendar with Week and Month views + drag-and-drop rescheduling
+  - Focus mode (Pomodoro style timer that records real study sessions)
+  - Progress & Analytics (charts, streaks, study time, insights)
+  - Achievements (streaks, milestones) — tasteful, not childish
+  - Light/Dark/System themes, mobile bottom navigation
+  - Email/password sign-in with a demo account, plus Google sign-in wiring
+
+Technology used:
+  - Next.js 16 (App Router) + React 19 + TypeScript
+  - Tailwind CSS v4 for styling (custom design tokens for light/dark)
+  - Drizzle ORM with SQLite (better-sqlite3) — designed to move to
+    PostgreSQL easily later (Postgres-ready)
+  - Zod for validating all inputs and all AI output
+  - Recharts for charts, Lucide for icons, date-fns for dates
+  - Vitest for unit tests
+  - No UI component library — buttons, cards, dialogs etc. were built
+    by hand as a small design system inside the project
+
+=======================================================================
+2. THE PROCESS — WHAT WAS DONE STEP BY STEP
+=======================================================================
+
+PHASE 0 — Check the environment
+--------------------------------
+- The project started in an empty folder.
+- We checked that Node.js (v24) and npm were installed and that the
+  internet worked for downloading packages.
+- We found: no Docker, no local PostgreSQL server.
+
+PHASE 1 — Project foundation (scaffolding + design system)
+-----------------------------------------------------------
+- Created the Next.js app with TypeScript and Tailwind:
+    npx --yes create-next-app@latest . --typescript --tailwind ...
+  (used a temporary valid folder name first, then moved contents into
+  the project root)
+- Installed the rest of the stack:
+    npm install drizzle-orm better-sqlite3 zod recharts lucide-react
+               date-fns bcryptjs
+    npm install -D drizzle-kit vitest tsx ...
+- Made the design system:
+    src/app/globals.css   -> color tokens for light and dark, fonts,
+                             glass effects, animations, utility classes
+    src/app/layout.tsx    -> root layout with fonts + toast provider
+    src/lib/utils.ts      -> small helpers (class names, minutes format)
+    src/lib/dates.ts      -> date helpers used everywhere
+    src/components/ui/*   -> Button, Card, Badge, Input, Textarea,
+                             Select, Switch, Dialog, Skeleton, Progress
+                             ring, Toaster, ThemeToggle, Avatar
+- Added a file that says what environment variables exist:
+    .env.example
+  plus .gitignore rules so secrets and local data are not committed.
+
+PHASE 2 — Database (schema, client, seed data)
+-----------------------------------------------
+- Designed a normal database schema with all the main tables. This is
+  in one place:  src/lib/db/schema.ts
+  Tables: users, profiles, settings, sessions, subjects, units, topics,
+  exams, tasks, plan_items, study_sessions, chat_conversations,
+  chat_messages, flashcards, quiz_attempts, achievements,
+  user_achievements, notifications, ai_recommendations.
+- The database client lives in src/lib/db/index.ts and the migration
+  tool config in drizzle.config.ts.
+- We made demo data (the student "Alex") that fills the app with
+  realistic subjects, syllabus, exams, history and sessions so the
+  product looks alive immediately. File: src/lib/db/demo.ts
+  The demo data is created automatically the first time the app runs
+  on an empty database (no setup needed).
+- Fix made: two database tables used the same index name, which SQLite
+  does not allow. We renamed one index, regenerated the migration and
+  reset the database.
+
+PHASE 3 — Authentication (email/password first)
+------------------------------------------------
+- Passwords are hashed (scrambled) with the "scrypt" algorithm, never
+  stored as plain text. File: src/lib/auth/password.ts
+- Sessions use a secure, random cookie (httpOnly). The cookie is
+  stored hashed in the sessions table. Files:
+    src/lib/auth/session.ts
+    src/lib/auth/actions.ts  (sign up, log in, log out, requireUser)
+- Middleware/guard: pages inside /app require a logged-in user; anyone
+  not logged in is sent to /login.
+- Login and sign-up pages were created at:
+    src/app/login/page.tsx, src/app/signup/page.tsx
+  and the shared form lives in src/components/auth/auth-form.tsx
+- Demo sign-in: demo@studypilot.app / demo1234 (one click button).
+
+PHASE 4 — The planning engine (the smart brain, no AI needed)
+--------------------------------------------------------------
+The heart of the product is a DETERMINISTIC planning engine — meaning
+it uses normal math rules, not the AI model, for the core scheduling.
+This is important because scheduling must always be correct.
+
+Files (all under src/lib/engine/):
+  - types.ts       -> the shapes of subjects, topics, exams, plans
+  - schedule.ts    -> topic priority scoring + daily/weekly schedule
+  - reschedule.ts  -> moves missed work into future free slots
+  - roadmap.ts     -> builds the exam preparation roadmap and readiness
+  - stats.ts       -> streaks, weekly study time, stats helpers
+  - insights.ts    -> plain-language insights (most productive time...)
+
+How the scoring works (very simplified):
+  Each unfinished topic gets a priority number based on:
+  - exam urgency (how close the exam is, how important)
+  - subject priority and difficulty
+  - topic difficulty
+  - weakness (needs revision topics get a boost)
+  - how long ago it was studied (freshness)
+  The engine then fills each day's available hours (minus breaks) with
+  the highest-priority topics that fit, respecting preferred study
+  times (morning/afternoon/evening/night) and the student's session
+  style (short/pomodoro/deep/mixed).
+
+The AI model is only used where reasoning is needed (chat/tutor,
+recommendations); the AI is never allowed to schedule by itself or
+change the database without validation.
+
+PHASE 5 — AI layer (provider abstraction + validation)
+------------------------------------------------------
+- src/lib/ai/types.ts      -> the contract + Zod schema for AI replies
+- src/lib/ai/provider.ts   -> provider adapters:
+     OpenAICompatibleProvider (works with Groq/OpenRouter too via
+     AI_BASE_URL), AnthropicProvider, GeminiProvider.
+     Also: askForJson() — asks the model for JSON and VALIDATES it
+     with Zod. Invalid output is rejected/retried, never trusted.
+- src/lib/ai/router.ts     -> decides the intent of a chat message:
+     "Plan my day", "What should I study now?", "Am I on track?",
+     "Quiz me", "Create flashcards", "Explain X", etc.
+     Many intents are answered fully by the local engine (always
+     correct, uses the student's real data). If an AI provider key is
+     set, tutoring / quizzes / flashcards / free chat use the model.
+- The chat service builds a snapshot of the student's real data and
+  gives it to the AI so answers are personal, never generic:
+     src/lib/services/chat.ts
+
+PHASE 6 — Services that connect database + engine + actions
+------------------------------------------------------------
+Server "actions" (secure functions the pages call) live in:
+  src/lib/actions/*.ts:
+     curriculum.ts  -> add/edit/delete subjects, units, topics,
+                       exams, tasks
+     planning.ts    -> complete/skip/reschedule plan items,
+                       regenerate the week's plan, focus sessions
+     chat.ts        -> send a message to Pilot (with context)
+     onboarding.ts  -> finish the setup wizard and create the plan
+     settings.ts    -> update profile, preferences, notifications
+
+Helper services live in src/lib/services/*.ts:
+  data.ts         -> loads everything for a page (subjects, topics,
+                     progress, plan, streaks...)
+  plan.ts         -> makes sure a plan exists, completes/skips items,
+                     postpones items, redistributes missed work
+  activity.ts     -> records study sessions and touches topics
+  analytics.ts    -> computes charts + stats + insights
+  achievements.ts -> checks and unlocks achievements
+  chat.ts         -> conversation history + the AI context snapshot
+
+PHASE 7 — The app shell and every screen
+-----------------------------------------
+The main app layout (sidebar on desktop, bottom navigation on mobile)
+is src/app/app/layout.tsx + src/components/app/app-shell.tsx.
+All product screens live under src/app/app/ :
+  /app                  Dashboard (greeting, today ring, plan, deadlines,
+                        exam countdown, weekly chart, weak topics,
+                        Pilot's take, subject progress)
+  /app/today            Today's plan page with per-block actions
+  /app/syllabus         Syllabus explorer (subjects -> units -> topics)
+  /app/subjects         Subject cards with progress & weak areas
+  /app/exams            Exam readiness + roadmap phases
+  /app/tasks            Task manager with filters
+  /app/calendar         Week + Month calendar with drag-and-drop
+  /app/chat             Pilot chat assistant with suggested prompts
+  /app/focus            Focus/Pomodoro timer
+  /app/progress         Charts, heatmap-style weekly bars, insights
+  /app/achievements     Achievement cards
+  /app/settings         Profile, preferences, AI provider status, reset
+Onboarding wizard:  src/app/onboarding/page.tsx +
+                    src/components/app/onboarding-wizard.tsx
+
+Shared screen parts (reusable components) are in src/components/app/:
+  plan-item-row.tsx    a study block row with Start/Complete/Move/Skip
+  plan-actions.tsx     Reschedule (missed) + Regenerate week buttons
+  charts.tsx           reusable Recharts wrappers
+  calendar-view.tsx    the interactive week/month calendar
+  chat-view.tsx        the chat window (messages, thinking dots)
+  focus-timer.tsx      the Pomodoro timer
+  syllabus-manager.tsx, subject-manager.tsx, exam-manager.tsx,
+  task-manager.tsx, settings-manager.tsx  (full CRUD editors)
+  onboarding-wizard.tsx
+
+PHASE 8 — Landing page
+----------------------
+src/app/page.tsx is the public marketing/landing page with hero,
+how-it-works, feature sections, testimonials, pricing placeholder,
+FAQ and final call to action.
+
+PHASE 9 — Quality: tests, QA scripts, bug fixing
+-------------------------------------------------
+- Unit tests for the engine and stats live in tests/*.test.ts
+  (19 tests, all green). Run with:  npm test
+- Type check:  npx tsc --noEmit
+- Production build:  npm run build
+- QA scripts (headless Chrome, no extra dependencies):
+     scripts/smoke.mjs         boots the app and checks all 14 routes
+     scripts/flow-qa.mjs       real browser: demo login -> dashboard ->
+                               complete a block -> reschedule one to
+                               tomorrow -> checks persistence and
+                               mobile overflow, records console errors
+     scripts/visual-qa.mjs     calendar screenshots (light/dark/week)
+     scripts/ai-qa.mjs         sends tutor/quiz/flashcards through the
+                               real chat UI and checks the answers came
+                               from the real AI provider
+- A mobile layout bug was found and fixed: dashboard cards were too
+  wide on phones (484 px on a 390 px screen). Cause: a grid column
+  grew to the width of its widest text. Fix: bare CSS grids now use
+  one shrinkable column (minmax(0,1fr)) so nothing pushes the page
+  wider than the screen. Verified: 0 px overflow on mobile.
+- Two AI bugs found by the E2E test were fixed:
+  1) The AI reply schema could be "partial", so a model answer with no
+     text passed validation and crashed saving to the database.
+     Fix: the reply text is always required.
+  2) If the AI provider failed, the chat got stuck showing "thinking"
+     forever. Fix: chat now returns a friendly error message instead.
+
+=======================================================================
+3. HOW THE FILES CONNECT (MAIN PIPELINES)
+=======================================================================
+
+PIPELINE 1 — Sign up / Log in
+-----------------------------
+Browser (login page) -> form -> server action (auth/actions.ts)
+  -> password hashed/checked (password.ts)
+  -> session cookie created (session.ts)
+  -> redirect to /app (or /onboarding for new users)
+
+PIPELINE 2 — Onboarding (new user)
+----------------------------------
+/onboarding -> onboarding wizard (onboarding-wizard.tsx)
+  collects name, subjects (+ optional topics), exams, deadlines,
+  study hours, preferred times, session style
+  -> server action completeOnboardingAction (actions/onboarding.ts)
+     -> creates subject/unit/topic/exam/task rows in the database
+     -> calls ensurePlan() (services/plan.ts)
+        -> engine generateSchedule() (engine/schedule.ts) writes the
+           plan_items rows for the next ~7 days
+  -> redirect to /app (dashboard)
+
+PIPELINE 3 — The daily plan loop
+--------------------------------
+App layout (app/layout.tsx) runs every page load:
+  requireUser -> make sure demo/user data exists -> ensurePlan()
+So a plan always exists. The Today page reads plan_items through
+services/data.ts (getAppData) and shows them as rows.
+
+When a student clicks Complete/Skip/Move-to-tomorrow:
+  plan-item-row.tsx -> server action (actions/planning.ts)
+  -> completePlanItem / skipPlanItem / postponePlanItem
+     (services/plan.ts)
+  -> postpone uses redistributeMissed (engine/reschedule.ts) which
+     splits the topic into the next days' free slots (never overloads)
+  -> page refresh shows the new state; achievements are checked
+
+When a student finishes a Focus session:
+  focus-timer.tsx -> finishFocusAction (actions/planning.ts)
+  -> recordSession (services/activity.ts) writes study_sessions
+  -> refreshAchievements (services/achievements.ts)
+
+PIPELINE 4 — AI chat
+--------------------
+chat-view.tsx -> server action sendChatMessageAction (actions/chat.ts)
+  -> buildChatContext (services/chat.ts) gathers the student's real
+     data snapshot from the database
+  -> respond() (ai/router.ts):
+       - local engine intents answered directly from real data
+       - tutor/quiz/flashcards/free chat answered by the AI model when
+         a key is configured (Groq currently), validated by Zod
+  -> assistant message saved in chat_messages
+
+PIPELINE 5 — Calendar with drag and drop
+----------------------------------------
+/app/calendar page loads events (loadCalendarData in services/data.ts):
+  study blocks (plan_items), tasks, exams.
+calendar-view.tsx renders Week or Month.
+Drop a block on another day -> movePlanItemAction (actions/planning.ts)
+  -> movePlanItem (services/plan.ts) checks:
+       not the past, not a completed item, no duplicate topic that
+       day, enough free hours that day -> then moves the row
+       (and marks it as rescheduled).
+
+PIPELINE 6 — Google sign-in (new, optional)
+-------------------------------------------
+Click "Continue with Google" (login/signup pages)
+  -> GET /auth/google (src/app/auth/google/route.ts)
+     saves a random state cookie and redirects to Google
+  -> Google sends the user back to /auth/google/callback
+     (src/app/auth/google/callback/route.ts):
+       - checks the state cookie (CSRF protection)
+       - exchanges the code for a token
+       - gets the verified Google profile (email, name, picture)
+       - finds or creates the user by email
+       - creates the normal StudyPilot session cookie
+  -> redirect to /app (or /onboarding for brand-new users)
+This only shows when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are
+set in the .env file (created in Google Cloud Console).
+
+=======================================================================
+4. COMMANDS YOU CAN RUN
+=======================================================================
+
+  npm run dev             -> start the app in development mode
+                             (http://localhost:3000)
+  npm run build           -> make a production build
+  npm start               -> run the production build
+  npm run typecheck       -> TypeScript check (no errors allowed)
+  npm test                -> run the unit tests
+  npm run seed            -> (re)create the demo student "Alex"
+  npm run db:generate     -> create database migrations after schema
+                             changes
+  npm run db:studio       -> open Drizzle Studio (browse the database)
+  node scripts/smoke.mjs  -> check all 14 routes of the running app
+  node scripts/flow-qa.mjs-> real-browser test of the core flow
+  node scripts/ai-qa.mjs  -> real-browser test of the AI tutor/quiz/
+                             flashcards (needs the AI key set)
+
+Demo account:  demo@studypilot.app  /  demo1234
+Reset the demo data: delete the file data/studypilot.db, then reload
+the app (it re-creates everything automatically).
+
+=======================================================================
+5. ENVIRONMENT VARIABLES (.env file)
+=======================================================================
+
+  DATABASE_URL             where the database lives. Default:
+                           file:./data/studypilot.db
+  AI_PROVIDER              openai (or anthropic / gemini). The openai
+                           mode also works for any OpenAI-compatible
+                           endpoint like Groq.
+  AI_API_KEY               the AI provider key. Empty = the app still
+                           works using the built-in engine only.
+  AI_BASE_URL              for OpenAI-compatible providers, e.g.
+                           https://api.groq.com/openai/v1
+  AI_MODEL                 the model name, e.g. qwen/qwen3.8-27b
+  GOOGLE_CLIENT_ID         Google OAuth client id (empty until you add
+  GOOGLE_CLIENT_SECRET     your Google Cloud Console credentials)
+  NEXT_PUBLIC_APP_URL      the app's public address, used for the
+                           Google redirect URL and links
+
+A working example was set in .env with Groq (free tier) so the AI
+tutor, quizzes and flashcards work right now.
+
+=======================================================================
+6. HOW TO SET UP GOOGLE SIGN-IN (Google Cloud Console)
+=======================================================================
+
+1. Go to Google Cloud Console -> APIs & Services -> Credentials.
+2. Create an OAuth client ID (type: Web application).
+3. Add an authorized redirect URI:
+     http://localhost:3000/auth/google/callback
+   (for a live site, use https://your-domain.com/auth/google/callback)
+4. Copy the Client ID and Client Secret into the .env file:
+     GOOGLE_CLIENT_ID="..."
+     GOOGLE_CLIENT_SECRET="..."
+5. Restart the app. The "Continue with Google" button now appears on
+   the login and sign-up pages.
+(Until the keys are added, the button is hidden and going to
+ /auth/google shows a clear "not configured" message.)
+
+=======================================================================
+7. THINGS FIXED ALONG THE WAY (short list)
+=======================================================================
+
+- Duplicate database index name between two tables -> renamed.
+- First-run page paths conflicted (a route group made /app pages live
+  at the wrong URLs) -> moved to a real /app folder.
+- The global toast provider was missing from the root layout, which
+  made several pages crash -> added it to the root layout.
+- Calendar month view + drag-and-drop was added (a full new feature),
+  and the database checks behind it were verified with a script.
+- Mobile horizontal overflow on the dashboard (111 px) -> fixed with
+  a safe CSS grid rule, now 0 px on a 390 px phone.
+- AI reply schema allowed empty replies -> reply text now required.
+- Chat could hang on AI errors -> now shows a friendly error.
+- Onboarding could feel "stuck" because the Continue button was
+  silently disabled -> now it always reacts: it moves forward, or it
+  clearly tells you what to fill in first, and the first text box of
+  every step is focused automatically.
+
+=======================================================================
+8. WHAT IS STILL OPEN / NEXT STEPS
+=======================================================================
+
+- Google sign-in code is done and protected; it needs YOUR real
+  Client ID + Secret from Google Cloud Console to be tested live.
+- PostgreSQL migration was requested: the schema is Postgres-ready;
+  we need a real PostgreSQL connection string to complete the swap,
+  the async driver change and the new migrations.
+- Streaming chat (tokens appear while the AI types), plus per-user
+  rate limiting and prompt-injection guards for the AI endpoint, were
+  requested and are next in the queue.
+- Future roadmap ideas in the README: PDF syllabus import, Google
+  Calendar sync, spaced-repetition flashcards, mobile push
+  notifications, multi-user deployment.
+
+=======================================================================
+That's StudyPilot in a nutshell: a clean Next.js/TypeScript app with a
+real deterministic planning engine, an optional LLM tutor, a full
+premium UI in light and dark mode, and tests/QA scripts that prove the
+core flows keep working.
+=======================================================================

@@ -1,0 +1,1 @@
+ALTER TABLE `tuning_prefs` ADD `signals_json` text DEFAULT '{}' NOT NULL;

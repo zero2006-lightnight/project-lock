@@ -1,0 +1,984 @@
+@import "tailwindcss";
+
+/* ────────────────────────────────────────────────────────────
+   StudyPilot · Neumorphic (soft UI) design system
+   ────────────────────────────────────────────────────────────
+   Depth is semantic:
+     raised  → clickable / floating surfaces   (dual soft shadows)
+     inset   → inputs, tracks, active nav       (inner shadows)
+     flat    → plain content regions
+     float   → dialogs / dropdowns / toasts     (stronger elevation)
+  Light values live on :root. The @theme inline block maps
+  colors onto Tailwind utilities
+   (bg-background, bg-card, text-foreground, …).
+   ──────────────────────────────────────────────────────────── */
+
+:root {
+  --background: #f7f3eb;
+  --foreground: #191919;
+  --card: #fffdf8;
+  --card-foreground: #191919;
+  --elevated: #ffffff;
+  --inset: #eee9df;
+  --muted: #eee9df;
+  --muted-foreground: #625f58;
+  --border: rgba(25, 25, 25, 0.16);
+  --input: #fffdf8;
+  --ring: #4169e1;
+
+  --primary: #191919;
+  --primary-foreground: #d8f36b;
+  --primary-soft: #edf7bd;
+  --secondary: #4169e1;
+  --secondary-foreground: #ffffff;
+  --accent: #ff654a;
+  --accent-soft: #ffe0d8;
+
+  --success: #147d6f;
+  --success-soft: #d9f0e9;
+  --warning: #9a5b08;
+  --warning-soft: #f8e8bd;
+  --danger: #b4233d;
+  --danger-soft: #fbdde2;
+  --info: #4169e1;
+  --info-soft: #dfe7ff;
+
+  --chart-1: #4169e1;
+  --chart-2: #ff654a;
+  --chart-3: #147d6f;
+  --chart-4: #9a5b08;
+  --chart-5: #191919;
+  --chart-6: #625f58;
+
+  /* Dual light-source shadows shared by every soft-UI utility. */
+  --neu-lo: rgba(25, 25, 25, 0.12);
+  --neu-lo-strong: rgba(25, 25, 25, 0.18);
+  --neu-hi: rgba(255, 255, 255, 0.7);
+
+  /* Composed depth recipes. */
+  --shadow-card: 0 8px 24px rgba(25, 25, 25, 0.06);
+  --shadow-pop: 0 18px 42px rgba(25, 25, 25, 0.14);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-elevated: var(--elevated);
+  --color-inset: var(--inset);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
+  --font-sans: var(--font-courier), "Courier Prime", "Courier New", ui-monospace, monospace;
+  /* Display face: typewriter voice — Special Elite carries the print
+     head-line character across the whole product. */
+  --font-display: var(--font-special), "Special Elite", "Courier New", serif;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-raise-sm: var(--shadow-raise-sm);
+  --shadow-raise: var(--shadow-raise);
+  --shadow-raise-lg: var(--shadow-raise-lg);
+  --shadow-float: var(--shadow-pop);
+  --shadow-inset-sm: var(--shadow-inset-sm);
+  --shadow-inset: var(--shadow-inset);
+  --shadow-inset-lg: var(--shadow-inset-lg);
+}
+
+/* Display type for headings — typewriter voice, gently tracked. */
+h1, h2, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.012em;
+}
+
+/* ── Raised / inset depth recipes (plain classes — usable anywhere) ── */
+
+:root {
+  /* Deepened for a true extruded 3D read: larger blur + spread on the dark
+     source, brighter top-left bevel on the light source. */
+  --shadow-raise-sm: 0 2px 8px rgba(25, 25, 25, 0.08);
+  --shadow-raise: 0 8px 20px rgba(25, 25, 25, 0.1);
+  --shadow-raise-lg: 0 14px 30px rgba(25, 25, 25, 0.14);
+  --shadow-extrude: 0 18px 42px rgba(25, 25, 25, 0.14);
+  --shadow-inset-sm: inset 0 0 0 1px var(--color-border);
+  --shadow-inset: inset 0 0 0 1px var(--color-border);
+  --shadow-inset-lg: inset 0 0 0 1px var(--color-border);
+}
+
+.neo-raise-sm { box-shadow: var(--shadow-raise-sm); }
+.neo-raise { box-shadow: var(--shadow-raise); }
+.neo-raise-lg { box-shadow: var(--shadow-raise-lg); }
+.neo-float { box-shadow: var(--shadow-pop); }
+.neo-extrude { box-shadow: var(--shadow-extrude); }
+.neo-inset-sm { box-shadow: var(--shadow-inset-sm); }
+.neo-inset { box-shadow: var(--shadow-inset); }
+.neo-inset-lg { box-shadow: var(--shadow-inset-lg); }
+
+/* Bevelled top edge — the highlight that sells curved 3D plastic/paper. */
+.bevel-top {
+  position: relative;
+}
+.bevel-top::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding-top: 1px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.55), transparent 22%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+/* Tactile 3D press: hover lifts and deepens, hold punches inward. */
+.tactile {
+  transition: box-shadow 0.18s ease, transform 0.18s ease, background-color 0.18s ease,
+    color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+}
+.tactile:hover { box-shadow: var(--shadow-raise-lg); transform: translateY(-2px); }
+.tactile:active { box-shadow: var(--shadow-inset); transform: translateY(1px) scale(0.985); }
+.tactile:hover:disabled,
+.tactile:active:disabled { box-shadow: var(--shadow-raise); transform: none; }
+
+/* ── 3D scene utilities ── */
+.scene-3d { perspective: 1400px; }
+.tilt-3d {
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+.pop-3d { transform: translateZ(46px); }
+.pop-3d-sm { transform: translateZ(24px); }
+/* Glare that follows the pointer (position set from --gx/--gy by Tilt). */
+.glare { position: relative; overflow: hidden; }
+.glare::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%),
+    rgba(255,255,255,0.28), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.glare:hover::after { opacity: 1; }
+/* Legacy helper names — kept so existing call sites inherit the system. */
+.card-shadow { box-shadow: var(--shadow-card); }
+.pop-shadow { box-shadow: var(--shadow-pop); }
+
+/* ── Base ─────────────────────────────────────────────────── */
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  /* Layered stage for the 3D look: top wash plus two soft forest-tinted
+     depth washes that sit behind extruded panels. Same hue family —
+     depth without rainbow. */
+  background-image:
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-primary) 4%, transparent), transparent 340px),
+    radial-gradient(1000px 520px at 88% -8%, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 60%),
+    radial-gradient(860px 520px at -10% 22%, color-mix(in srgb, var(--color-success) 5%, transparent), transparent 58%);
+  background-repeat: no-repeat;
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 24%, transparent);
+}
+
+/* Accessible focus: keyboard-only ring that reads on both themes. */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-ring) 85%, white);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Thin, quiet scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-muted-foreground) 35%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-muted-foreground) 30%, transparent);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Motion ───────────────────────────────────────────────── */
+@keyframes sp-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sp-scale-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes sp-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes sp-shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes sp-pulse-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@keyframes sp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes sp-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes sp-grow-bar {
+  from { width: 0; }
+}
+@keyframes sp-breath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.014); }
+}
+/* 3D motion set: depth-first entrances, hover-safe floats, light sweeps. */
+@keyframes sp-rise-3d {
+  from { opacity: 0; transform: translateY(26px) rotateX(9deg) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+}
+@keyframes sp-float-3d {
+  0%, 100% { transform: translateY(0) rotateX(0deg); }
+  50% { transform: translateY(-12px) rotateX(2deg); }
+}
+@keyframes sp-float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes sp-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, -20px) scale(1.06); }
+}
+@keyframes sp-shine {
+  from { transform: translateX(-130%) skewX(-14deg); }
+  to { transform: translateX(240%) skewX(-14deg); }
+}
+@keyframes sp-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 32%, transparent), var(--shadow-raise); }
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-primary) 0%, transparent), var(--shadow-raise-lg); }
+}
+
+.animate-fade-up { animation: sp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in { animation: sp-fade-in 0.4s ease both; }
+.animate-scale-in { animation: sp-scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-pop { animation: sp-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-float { animation: sp-float 5s ease-in-out infinite; }
+.animate-float-3d { animation: sp-float-3d 6s ease-in-out infinite; transform-style: preserve-3d; }
+.animate-float-soft { animation: sp-float-soft 5.2s ease-in-out infinite; }
+.animate-rise-3d { animation: sp-rise-3d 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-glow { animation: sp-glow 2.8s ease-in-out infinite; }
+.animate-spin-slow { animation: sp-spin 1.1s linear infinite; }
+/* State-driven: applied to the focus dial only while the timer runs. */
+.animate-breath { animation: sp-breath 4s ease-in-out infinite; }
+
+/* Staggered 3D entrance for card grids: depth + rise per child. */
+.rise-3d > * { animation: sp-rise-3d 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rise-3d > *:nth-child(1) { animation-delay: 0.04s; }
+.rise-3d > *:nth-child(2) { animation-delay: 0.1s; }
+.rise-3d > *:nth-child(3) { animation-delay: 0.16s; }
+.rise-3d > *:nth-child(4) { animation-delay: 0.22s; }
+.rise-3d > *:nth-child(5) { animation-delay: 0.28s; }
+.rise-3d > *:nth-child(6) { animation-delay: 0.34s; }
+
+/* Ambient drifting orbs: blurred forest-tinted depth behind the hero. */
+.orb { position: absolute; border-radius: 9999px; filter: blur(70px); pointer-events: none; }
+.orb-a { animation: sp-drift 11s ease-in-out infinite; }
+.orb-b { animation: sp-drift 14s ease-in-out infinite reverse; }
+
+/* Shine sweep for the single primary CTA — light gliding over 3D plastic. */
+.shine { position: relative; overflow: hidden; }
+.shine::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 44%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: translateX(-130%) skewX(-14deg);
+  animation: sp-shine 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.stagger > * { animation: sp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.stagger > *:nth-child(3) { animation-delay: 0.11s; }
+.stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger > *:nth-child(5) { animation-delay: 0.19s; }
+.stagger > *:nth-child(6) { animation-delay: 0.23s; }
+.stagger > *:nth-child(7) { animation-delay: 0.27s; }
+.stagger > *:nth-child(8) { animation-delay: 0.31s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .tilt-3d { transform: none !important; }
+  .scene-3d { perspective: none; }
+}
+
+/* ── Component helpers ────────────────────────────────────── */
+
+/* Translucent elevated slab for sticky bars & overlays. */
+.glass {
+  background: color-mix(in srgb, var(--color-card) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+/* Deprecated flat shadows — mapped onto soft-UI depth for any leftovers. */
+.shadow-card { box-shadow: var(--shadow-card); }
+.shadow-pop { box-shadow: var(--shadow-pop); }
+
+/* Accent emphasis for display text — forest → deep forest, no rainbow. */
+.text-gradient {
+  background: linear-gradient(120deg, #1e6e3c 0%, #115231 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.soft-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-muted-foreground) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-muted-foreground) 8%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* 3D interactive surface: hover extrudes toward the viewer with a bevel
+   catch-light; press punches back into the canvas. */
+.hover-lift {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  box-shadow: var(--shadow-raise-lg);
+}
+.hover-lift:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: var(--shadow-inset-sm);
+}
+
+/* ── Ledger language (timetable paper, not card kit) ──
+   Ruled rows separated by 1px ink hairlines. Used for plans, steps,
+   features, deadlines — anywhere a student scans a list. */
+.ledger {
+  border-top: 1px solid var(--color-border);
+}
+.ledger-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.ledger-row-tight {
+  padding: 0.55rem 0.25rem;
+}
+
+/* Margin-note stamp: the one rubber-stamp moment (streak / proof chip).
+   Flat paper, ink border, slight rotation — never a floating gradient. */
+.stamp {
+  border: 1.5px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+  border-radius: 10px;
+  background: var(--color-card);
+  box-shadow: none;
+}
+
+/* Hand-ruled emphasis for the hero verdict — replaces mid-headline
+   gradient-color highlighting. */
+.marker-underline {
+  background-image: linear-gradient(to top, color-mix(in srgb, var(--color-primary) 26%, transparent) 34%, transparent 34%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  padding-bottom: 0.06em;
+}
+
+/* Left-aligned section header: small index + rule, never centered eyebrow. */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  border-top: 2px solid var(--color-foreground);
+  padding-top: 0.9rem;
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, white 55%, transparent), transparent);
+  animation: sp-shimmer 1.6s infinite;
+}
+.thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: sp-pulse-dot 1.2s infinite ease-in-out;
+}
+.thinking-dot:nth-child(2) { animation-delay: 0.15s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.3s; }
+
+.bar-grow { animation: sp-grow-bar 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ────────────────────────────────────────────────────────────
+   Layout safety net
+   Bare grids (no grid-cols-* utility) get one shrinkable column
+   (minmax(0, 1fr)) instead of an implicit auto column.
+   ──────────────────────────────────────────────────────────── */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Public landing page: editorial product edition, separate from the tactile
+   operating surface used inside the app. */
+.editorial-landing {
+  --edition-ink: #171717;
+  --edition-paper: #f7f3eb;
+  --edition-lime: #d8f36b;
+  --edition-coral: #ff654a;
+  --edition-blue: #4169e1;
+  --edition-line: rgba(23, 23, 23, 0.18);
+  background: var(--edition-paper);
+  color: var(--edition-ink);
+}
+
+.editorial-landing .editorial-header {
+  background: color-mix(in srgb, var(--edition-paper) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-color: var(--edition-line);
+}
+
+.editorial-landing .editorial-mark {
+  border-radius: 10px;
+  background: var(--edition-ink);
+  color: var(--edition-lime);
+}
+
+.editorial-landing .editorial-hero {
+  background: var(--edition-lime);
+  border-bottom: 1px solid var(--edition-ink);
+}
+
+.editorial-landing .editorial-hero h1,
+.editorial-landing h2,
+.editorial-landing h3 {
+  color: var(--edition-ink);
+}
+
+.editorial-landing .editorial-highlight {
+  display: inline;
+  color: var(--edition-coral);
+}
+
+.editorial-landing .editorial-primary,
+.editorial-landing .editorial-secondary {
+  min-height: 3rem;
+  border-radius: 999px;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.editorial-landing .editorial-primary {
+  background: var(--edition-ink);
+  color: var(--edition-lime);
+}
+
+.editorial-landing .editorial-secondary {
+  border: 1px solid var(--edition-ink);
+  color: var(--edition-ink);
+}
+
+.editorial-landing .editorial-primary:hover,
+.editorial-landing .editorial-secondary:hover {
+  transform: translateY(-2px);
+}
+
+.editorial-landing .editorial-secondary:hover {
+  background: var(--edition-paper);
+}
+
+.editorial-landing .editorial-preview {
+  border: 1px solid var(--edition-ink);
+  background: var(--edition-paper);
+  box-shadow: 14px 14px 0 var(--edition-coral);
+  transform: rotate(1.5deg);
+}
+
+.editorial-landing .editorial-cta {
+  background: var(--edition-blue);
+  color: white;
+}
+
+.editorial-landing .editorial-cta h2 {
+  color: white;
+}
+
+.editorial-landing .editorial-shape {
+  position: absolute;
+  pointer-events: none;
+}
+
+.editorial-landing .editorial-shape-one {
+  right: 4%;
+  top: 8%;
+  height: 9rem;
+  width: 9rem;
+  border: 1px solid var(--edition-ink);
+  border-radius: 50%;
+}
+
+.editorial-landing .editorial-shape-two {
+  bottom: -4rem;
+  left: 42%;
+  height: 10rem;
+  width: 10rem;
+  border-radius: 50%;
+  background: var(--edition-blue);
+}
+
+.editorial-landing .section-head {
+  border-color: var(--edition-ink);
+}
+
+.editorial-landing .section-head h2 {
+  max-width: 13ch;
+  font-size: clamp(2.25rem, 5vw, 4.5rem);
+  line-height: 0.94;
+}
+
+.editorial-landing .section-head p {
+  max-width: 42rem;
+}
+
+.editorial-landing #how,
+.editorial-landing #faq {
+  background: var(--edition-paper);
+}
+
+.editorial-landing #features,
+.editorial-landing #pricing {
+  background: var(--edition-blue);
+  border-color: var(--edition-ink);
+}
+
+.editorial-landing #features .section-head h2,
+.editorial-landing #features .section-head p,
+.editorial-landing #pricing .section-head h2,
+.editorial-landing #pricing .section-head p {
+  color: white;
+}
+
+.editorial-landing #features .section-head > span,
+.editorial-landing #pricing .section-head > span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.editorial-landing .hover-lift,
+.editorial-landing .neo-raise,
+.editorial-landing .neo-extrude,
+.editorial-landing .neo-raise-sm,
+.editorial-landing .neo-float {
+  border-radius: 14px;
+  border: 1px solid var(--edition-ink);
+  box-shadow: none;
+}
+
+.editorial-landing .hover-lift:hover {
+  box-shadow: 8px 8px 0 var(--edition-coral);
+  transform: translate(-3px, -3px);
+}
+
+.editorial-landing #how .hover-lift:nth-child(2n),
+.editorial-landing #features .hover-lift:nth-child(3n) {
+  background: var(--edition-coral);
+}
+
+.editorial-landing #features .hover-lift,
+.editorial-landing #pricing .hover-lift {
+  background: var(--edition-paper);
+}
+
+.editorial-landing #pricing .editorial-primary,
+.editorial-landing #pricing .editorial-secondary {
+  width: 100%;
+  justify-content: center;
+}
+
+.editorial-landing #pricing .neo-extrude {
+  background: var(--edition-lime);
+}
+
+.editorial-landing #pricing .neo-extrude .neo-raise-sm {
+  background: var(--edition-ink);
+  color: var(--edition-lime);
+}
+
+.editorial-landing details {
+  border: 1px solid var(--edition-ink);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.editorial-landing .neo-inset-sm {
+  box-shadow: none;
+}
+
+.editorial-landing footer {
+  border-color: var(--edition-line);
+}
+
+@media (max-width: 640px) {
+  .editorial-landing .editorial-hero h1 {
+    font-size: 3.25rem;
+  }
+
+  .editorial-landing .editorial-preview {
+    box-shadow: 8px 8px 0 var(--edition-coral);
+    transform: rotate(0.5deg);
+  }
+
+  .editorial-landing .editorial-shape-one {
+    right: -3rem;
+    top: 2rem;
+  }
+
+  .editorial-landing .editorial-shape-two {
+    left: auto;
+    right: 20%;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   StudyPilot · Neo-Brutalism tokens (Phase 0, additive)
+   ────────────────────────────────────────────────────────────
+   Hard depth lives alongside the soft-UI system during migration.
+   Three shadow tiers only: sm (chips) / md-default (cards, buttons)
+   / lg (hero, dialogs). Zero blur everywhere. Ink + shadow colors
+  resolve from the light palette.
+   Old soft classes (neo-*, bevel-top, glass, orb, shine, tilt-3d,
+   text-gradient, soft-grid) are untouched — deleted in Phase 5.
+   ──────────────────────────────────────────────────────────── */
+
+:root {
+  --brutal-ink: #111111;
+  --brutal-shadow: #111111;
+  --brutal-paper: #fffdf5;
+  --brutal-focus: #2b5ce6;
+}
+
+@theme {
+  --color-paper: var(--brutal-paper);
+  --color-ink: var(--brutal-ink);
+  --color-line: var(--brutal-ink);
+  /* Fixed near-black for text on flat fills (lime/yellow/pink). */
+  --color-inkfill: #111111;
+
+  --color-lime: #d8f36b;
+  --color-coral: #ff654a;
+  --color-brutal-blue: #2b5ce6;
+  --color-brutal-yellow: #ffdb33;
+  --color-brutal-pink: #ff90e8;
+  --color-brutal-cyan: #00f0ff;
+
+  --color-success-fill: #b9f0d6;
+  --color-warning-fill: #ffe38a;
+  --color-danger-fill: #ffc9d2;
+  --color-info-fill: #d3e0ff;
+
+  --color-subj-1: #d8f36b;
+  --color-subj-2: #ff90e8;
+  --color-subj-3: #7df9ff;
+  --color-subj-4: #ffdb33;
+  --color-subj-5: #ffb643;
+  --color-subj-6: #b6f09c;
+
+  --shadow-brutal-sm: 3px 3px 0 0 var(--brutal-shadow);
+  --shadow-brutal: 4px 4px 0 0 var(--brutal-shadow);
+  --shadow-brutal-md: 6px 6px 0 0 var(--brutal-shadow);
+  --shadow-brutal-lg: 8px 8px 0 0 var(--brutal-shadow);
+  --shadow-brutal-coral: 8px 8px 0 0 #ff654a;
+  --shadow-brutal-none: 0 0 0 0 var(--brutal-shadow);
+
+  --radius-brutal-none: 0px;
+  --radius-brutal-sm: 4px;
+  --radius-brutal: 6px;
+
+  --font-brutal-display: var(--font-special), "Special Elite", "Courier New", serif;
+  --font-brutal-sans: var(--font-courier), "Courier Prime", "Courier New", ui-monospace, monospace;
+  --font-brutal-mono: var(--font-courier), "Courier Prime", "Courier New", ui-monospace, monospace;
+}
+
+/* Display type for the brutal system. App page titles use .app-title.
+   Typewriter faces need neutral tracking — tight grotesk values collide. */
+.brutal-h1, .font-brutal-display {
+  font-family: var(--font-brutal-display);
+  letter-spacing: 0;
+  line-height: 0.95;
+}
+.app-title {
+  font-family: var(--font-brutal-display);
+  letter-spacing: 0;
+  line-height: 1;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+.eyebrow {
+  font-family: var(--font-brutal-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Tactile mechanical press — the signature brutal interaction. */
+.brutal-press {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.brutal-press:active { transform: translate(4px, 4px); box-shadow: 0 0 0 0 var(--brutal-shadow); }
+.brutal-press:disabled, .brutal-press[aria-disabled="true"] {
+  transform: none;
+  box-shadow: 0 0 0 0 var(--brutal-shadow);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Legacy alias: every .tactile / .hover-lift call site inherits brutal
+   press physics without edits (rollback-safe until Phase 5). */
+.tactile, .hover-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.tactile:active, .hover-lift:active { transform: translate(4px, 4px); box-shadow: 0 0 0 0 var(--brutal-shadow); }
+.tactile:hover:disabled, .tactile:active:disabled,
+.hover-lift:hover:disabled, .hover-lift:active:disabled { transform: none; box-shadow: var(--shadow-raise); }
+
+@media (hover: hover) and (pointer: fine) {
+  .brutal-press:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 0 var(--brutal-shadow); }
+  .tactile:hover, .hover-lift:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 0 var(--brutal-shadow); }
+}
+
+/* Legacy alias: flat leftover shadows map onto hard depth. */
+.card-shadow { box-shadow: 4px 4px 0 0 var(--brutal-shadow); }
+.pop-shadow { box-shadow: 8px 8px 0 0 var(--brutal-shadow); }
+
+.brutal-card {
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  border: 2px solid var(--brutal-ink);
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 0 var(--brutal-shadow);
+}
+.brutal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 0 var(--brutal-shadow);
+  font-family: var(--font-brutal-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.75rem;
+  line-height: 1.4;
+}
+.brutal-input {
+  background: var(--color-input);
+  border: 2px solid var(--brutal-ink);
+  border-radius: 6px;
+  padding: 0.625rem 0.75rem;
+}
+.brutal-input:focus {
+  outline: none;
+  border-color: var(--brutal-ink);
+  box-shadow: 4px 4px 0 0 var(--brutal-focus);
+}
+.brutal-ledger { border-top: 2px solid var(--brutal-ink); }
+.brutal-ledger-row { border-bottom: 2px solid var(--brutal-ink); }
+
+/* Ledger upgrade: ruled rows with hard 2px ink rules. */
+.ledger { border-top: 2px solid var(--brutal-ink); }
+.ledger-row, .ledger-row-tight { border-bottom: 2px solid var(--brutal-ink); }
+
+/* Margin-note stamp, hardened: the one rubber-stamp moment. */
+.stamp {
+  border: 2.5px solid var(--brutal-ink);
+  border-radius: 6px;
+  background: var(--color-brutal-yellow);
+  color: #111111;
+  box-shadow: 3px 3px 0 0 var(--brutal-shadow);
+  font-family: var(--font-brutal-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Section header: thicken to a 3px ink rule. */
+.section-head {
+  border-top: 3px solid var(--brutal-ink);
+}
+
+/* Hard dot-grid for landing/empty states only (replaces soft-grid there). */
+.brutal-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brutal-ink) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--brutal-ink) 12%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Marquee band (landing + achievements): black band, cream text. */
+.marquee {
+  overflow: hidden;
+  background: #111111;
+  color: #fff6e5;
+  border-top: 3px solid #111111;
+  border-bottom: 3px solid #111111;
+  transform: rotate(-1deg);
+}
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: sp-marquee 22s linear infinite;
+}
+.marquee:hover .marquee-track, .marquee:focus-within .marquee-track { animation-play-state: paused; }
+@keyframes sp-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Accessible focus: 3px solid ring + offset, never removed for aesthetics. */
+:focus-visible {
+  outline: 3px solid var(--brutal-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Mobile: step shadows down one tier — 8px overwhelms 375px screens. */
+@media (max-width: 640px) {
+  .brutal-card { box-shadow: 3px 3px 0 0 var(--brutal-shadow); }
+  .pop-shadow { box-shadow: 4px 4px 0 0 var(--brutal-shadow); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brutal-press,
+  .tactile,
+  .hover-lift {
+    transition: none !important;
+    transform: none !important;
+  }
+  .marquee-track { animation: none !important; }
+}
+
+/* G-o1 talking wave — brutalist bars: ink outline, lime fill, hard
+   edges. Plays while G-o1 speaks (and softly while listening).
+   Covered by the global prefers-reduced-motion kill block. */
+@keyframes sp-wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+.go1-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+.go1-wave > span {
+  width: 5px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-lime);
+  border: 1px solid var(--brutal-ink);
+  transform: scaleY(0.3);
+}
+.go1-wave.live > span { animation: sp-wave 0.9s ease-in-out infinite; }
+.go1-wave.live > span:nth-child(1) { animation-delay: 0s; }
+.go1-wave.live > span:nth-child(2) { animation-delay: 0.12s; }
+.go1-wave.live > span:nth-child(3) { animation-delay: 0.24s; }
+.go1-wave.live > span:nth-child(4) { animation-delay: 0.36s; }
+.go1-wave.live > span:nth-child(5) { animation-delay: 0.48s; }
+.go1-wave.soft > span {
+  background: var(--color-card);
+  animation-duration: 1.6s;
+}
